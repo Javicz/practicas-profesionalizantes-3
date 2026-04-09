@@ -1,0 +1,67 @@
+Análisis de la consigna (Identificar requerimientos)
+
+Materiales/Objetos (Catálogo)
+Material	Unidad de medida
+Vidrio	kg
+Hierro	kg
+Aluminio	kg
+Cobre	kg
+Bronce	kg
+Cartón	kg
+Papel Blanco	kg
+Tapas de plástico	kg
+Aceite de girasol	m³
+Baterías de vehículos	unidades
+Requerimiento: Sistema debe permitir incorporar nuevos materiales en el futuro.
+
+Reglas de negocio
+Stock nunca negativo - Validación estricta
+
+No duplicación de materiales - Cada material es único
+
+Operaciones: Compras (incrementan stock) y Ventas (decrementan stock)
+
+Validación de montos -cantidades deben ser > 0
+
+Casos de uso (mínimos)
+Visualizar listado de materiales con sus cantidades actuales
+
+Registrar compra (incrementar stock de un material)
+
+Registrar venta (decrementar stock de un material)
+
+Agregar nuevo material (con su nombre y unidad de medida)
+
+Lo que NO se pide (para no sobredesarrollar)
+Autenticación de usuarios
+
+Historial de transacciones
+
+Reportes complejos
+
+Múltiples tablas (indica explícitamente "única tabla")
+
+planta-reciclaje/
+├── backend/
+│   ├── config/
+│   │   └── db.js              # Configuración de MySQL
+│   ├── controllers/
+│   │   ├── materialesController.js
+│   │   └── operacionesController.js
+│   ├── routes/
+│   │   ├── materialesRoutes.js
+│   │   └── operacionesRoutes.js
+│   ├── middleware/
+│   │   └── validaciones.js    # Validaciones compartidas
+│   ├── server.js              # Servidor principal
+│   └── package.json
+├── frontend/
+│   ├── index.html
+│   ├── css/
+│   │   └── styles.css
+│   └── js/
+│       ├── app.js
+│       ├── api.js
+│       └── ui.js
+└── database/
+    └── schema.sql
