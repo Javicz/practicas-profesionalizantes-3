@@ -1,0 +1,13 @@
+{
+  "name": "sdk-v2-rbac",
+  "version": "2.0.0",
+  "description": "Servidor con autenticación y gestión de permisos RBAC",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "sqlite3 db.sqlite3 < seed.sql"
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.7"
+  }
+}

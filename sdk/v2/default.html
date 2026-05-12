@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Sistema RBAC - Login</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 500px;
+            margin: 50px auto;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1, h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 24px;
+            text-align: center;
+            color: #667eea;
+        }
+        input, button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #764ba2;
+        }
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            display: none;
+        }
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        hr {
+            margin: 20px 0;
+            border: none;
+            border-top: 1px solid #eee;
+        }
+        .user-info {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .test-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .test-buttons button {
+            flex: 1;
+            background: #28a745;
+        }
+        .test-buttons button:nth-child(2) {
+            background: #dc3545;
+        }
+        .logout-btn {
+            background: #6c757d;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Sistema de Autenticación</h1>
+        
+        <div id="messageBox" class="message"></div>
+        
+        <!-- Login Section -->
+        <div id="loginSection">
+            <h2>Iniciar Sesión</h2>
+            <form id="loginForm">
+                <input type="text" name="username" placeholder="Usuario" required>
+                <input type="password" name="password" placeholder="Contraseña" required>
+                <button type="submit">Ingresar</button>
+            </form>
+        </div>
+        
+        <hr>
+        
+        <!-- Register Section -->
+        <div id="registerSection">
+            <h2>Registro de Usuario</h2>
+            <form id="registerForm">
+                <input type="text" name="username" placeholder="Usuario" required>
+                <input type="password" name="password" placeholder="Contraseña" required>
+                <button type="submit">Registrarse</button>
+            </form>
+        </div>
+        
+        <!-- User Info (shown after login) -->
+        <div id="userInfo" style="display:none;">
+            <hr>
+            <div class="user-info">
+                <strong>✅ Sesión iniciada como:</strong> <span id="currentUser"></span><br>
+                <strong>👥 Grupos:</strong> <span id="userGroups"></span>
+            </div>
+            
+            <div class="test-buttons">
+                <button id="testApiBtn">Probar API /user</button>
+                <button id="checkProfileBtn">Probar /profile</button>
+            </div>
+            <button id="logoutBtn" class="logout-btn">🚪 Cerrar Sesión</button>
+        </div>
+    </div>
+
+    <script>
+        let currentUserData = null;
+        const API_BASE = '';
+        
+        function showMessage(text, type = 'info') {
+            const msgBox = document.getElementById('messageBox');
+            msgBox.textContent = text;
+            msgBox.className = `message ${type}`;
+            msgBox.style.display = 'block';
+            setTimeout(() => {
+                msgBox.style.display = 'none';
+            }, 3000);
+        }
+        
+        async function login(username, password) {
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
+            
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.status) {
+                    currentUserData = data.result;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUserData));
+                    document.getElementById('loginSection').style.display = 'none';
+                    document.getElementById('registerSection').style.display = 'none';
+                    document.getElementById('userInfo').style.display = 'block';
+                    document.getElementById('currentUser').textContent = currentUserData.username;
+                    document.getElementById('userGroups').textContent = currentUserData.groups.join(', ');
+                    showMessage(`✅ Bienvenido ${currentUserData.username}`, 'success');
+                } else {
+                    showMessage(`❌ Error: ${data.description}`, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error de conexión', 'error');
+            }
+        }
+        
+        function logout() {
+            currentUserData = null;
+            localStorage.removeItem('currentUser');
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('registerSection').style.display = 'block';
+            document.getElementById('userInfo').style.display = 'none';
+            document.getElementById('loginForm').reset();
+            showMessage('👋 Sesión cerrada', 'info');
+        }
+        
+        async function testApi() {
+            if (!currentUserData) {
+                showMessage('⚠️ Primero inicia sesión', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/user', {
+                    headers: { 'X-User': currentUserData.username }
+                });
+                const data = await response.json();
+                
+                if (response.status === 200) {
+                    showMessage(`✅ API /user accedida exitosamente. Datos: ${JSON.stringify(data).substring(0, 200)}`, 'success');
+                } else {
+                    showMessage(`❌ Acceso denegado: ${data.message || data.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error al probar API', 'error');
+            }
+        }
+        
+        async function checkProfile() {
+            if (!currentUserData) {
+                showMessage('⚠️ Primero inicia sesión', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/profile', {
+                    headers: { 'X-User': currentUserData.username }
+                });
+                const data = await response.json();
+                
+                if (response.status === 200) {
+                    showMessage(`✅ /profile accedido: ${JSON.stringify(data)}`, 'success');
+                } else {
+                    showMessage(`❌ Sin permiso para /profile: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error al acceder a /profile', 'error');
+            }
+        }
+        
+        async function register(username, password) {
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
+            
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    body: formData
+                });
+                const text = await response.text();
+                
+                if (response.status === 201) {
+                    showMessage(`✅ ${text}`, 'success');
+                    document.getElementById('registerForm').reset();
+                } else {
+                    showMessage(`❌ Error: ${text}`, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error de conexión', 'error');
+            }
+        }
+        
+        // Event Listeners
+        document.getElementById('loginForm').onsubmit = (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            login(formData.get('username'), formData.get('password'));
+        };
+        
+        document.getElementById('registerForm').onsubmit = (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            register(formData.get('username'), formData.get('password'));
+        };
+        
+        document.getElementById('testApiBtn').onclick = testApi;
+        document.getElementById('checkProfileBtn').onclick = checkProfile;
+        document.getElementById('logoutBtn').onclick = logout;
+        
+        // Check for stored session
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser) {
+            currentUserData = JSON.parse(storedUser);
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('registerSection').style.display = 'none';
+            document.getElementById('userInfo').style.display = 'block';
+            document.getElementById('currentUser').textContent = currentUserData.username;
+            document.getElementById('userGroups').textContent = currentUserData.groups?.join(', ') || 'sin grupos';
+        }
+        
+        // Botón mostrar mensaje original
+        if (document.getElementById('btnMsg')) {
+            document.getElementById('btnMsg').onclick = async () => {
+                await fetch('/showMessage');
+                showMessage('Mensaje enviado al servidor', 'info');
+            };
+        }
+    </script>
+</body>
+</html>
