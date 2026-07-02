@@ -1,0 +1,15 @@
+{
+  "name": "sdk-v4-backend",
+  "version": "4.0.0",
+  "type": "module",
+  "description": "Backend API RPC",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs",
+    "init-db": "node init-db.mjs"
+  },
+  "dependencies": {
+    "sqlite3": "^6.0.1",
+    "bcryptjs": "^3.0.3"
+  }
+}

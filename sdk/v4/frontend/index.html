@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDK/V4 - Frontend</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="container">
+    <h1>🔐 SDK/V4 - Frontend</h1>
+    <p class="subtitle">Backend: <code>http://localhost:8080</code></p>
+
+    <div class="info-box">
+        <strong>📌 Usuario:</strong> <code>usuarioX</code> / <code>123456</code>
+        <span style="color:#28a745;">✅ /print, /log, /help</span>
+        <span style="color:#dc3545;">❌ /sayHello, /sayBye</span>
+    </div>
+
+    <div class="status-bar">
+        <span>👤 <strong id="statusUser">No autenticado</strong></span>
+        <span id="statusBadge" class="badge badge-offline">Sin sesión</span>
+    </div>
+
+    <!-- Login -->
+    <div class="section">
+        <h2>👤 Autenticación</h2>
+        <div class="form-group">
+            <label>Usuario:</label>
+            <input id="txtUser" type="text" value="usuarioX">
+        </div>
+        <div class="form-group">
+            <label>Contraseña:</label>
+            <input id="txtPassword" type="password" value="123456">
+        </div>
+        <button class="btn-primary" id="btnLogin">Login</button>
+        <button class="btn-danger" id="btnLogout">Logout</button>
+        <div id="loginResult" class="result"></div>
+    </div>
+
+    <!-- Registro -->
+    <div class="section">
+        <h2>📝 Registro</h2>
+        <div class="form-group">
+            <label>Usuario:</label>
+            <input id="txtNewUser" type="text" placeholder="Nuevo usuario">
+        </div>
+        <div class="form-group">
+            <label>Contraseña:</label>
+            <input id="txtNewPassword" type="password" placeholder="Nueva contraseña">
+        </div>
+        <button class="btn-success" id="btnRegister">Crear</button>
+        <div id="registerResult" class="result"></div>
+        <small>🔐 SHA256</small>
+    </div>
+
+    <!-- Endpoints -->
+    <div class="section">
+        <h2>🔒 Endpoints</h2>
+        <div class="endpoint-grid">
+            <button class="btn-info" data-endpoint="print">/print</button>
+            <button class="btn-info" data-endpoint="log">/log</button>
+            <button class="btn-info" data-endpoint="help">/help</button>
+            <button class="btn-secondary" data-endpoint="sayHello">/sayHello</button>
+            <button class="btn-secondary" data-endpoint="sayBye">/sayBye</button>
+        </div>
+        <div id="endpointResult" class="result"></div>
+    </div>
+
+    <!-- Gestión -->
+    <div class="section">
+        <h2>⚙️ Gestión</h2>
+        <button class="btn-info" id="btnListUsers">Ver Usuarios</button>
+        <button class="btn-info" id="btnListGroups">Ver Grupos</button>
+        <div id="manageResult" class="result"></div>
+    </div>
+</div>
+
+<script>
+// ============ CONFIG ============
+var API_URL = 'http://localhost:8080'; // Sin barra al final
+
+// ============ FUNCIÓN PARA CONSTRUIR URL ============
+function buildUrl(endpoint) {
+    if (API_URL.endsWith('/')) {
+        return API_URL + endpoint;
+    } else {
+        return API_URL + '/' + endpoint;
+    }
+}
+
+var currentUser = null;
+var userId = null;
+
+// ============ UI ============
+function showResult(id, msg, type) {
+    var el = document.getElementById(id);
+    el.className = 'result show ' + type;
+    if (typeof msg === 'object') {
+        el.textContent = JSON.stringify(msg, null, 2);
+    } else {
+        el.innerHTML = msg;
+    }
+}
+
+function updateStatus(user, id) {
+    var userEl = document.getElementById('statusUser');
+    var badgeEl = document.getElementById('statusBadge');
+    
+    if (user) {
+        userEl.textContent = user + ' (ID: ' + id + ')';
+        userEl.style.color = '#28a745';
+        badgeEl.textContent = '✅ Activa';
+        badgeEl.className = 'badge badge-online';
+        currentUser = user;
+        userId = id;
+    } else {
+        userEl.textContent = 'No autenticado';
+        userEl.style.color = '#dc3545';
+        badgeEl.textContent = '❌ Sin sesión';
+        badgeEl.className = 'badge badge-offline';
+        currentUser = null;
+        userId = null;
+    }
+}
+
+// ============ LOGIN ============
+async function handleLogin() {
+    var user = document.getElementById('txtUser').value;
+    var pass = document.getElementById('txtPassword').value;
+
+    if (!user || !pass) {
+        showResult('loginResult', '❌ Usuario y contraseña requeridos', 'error');
+        return;
+    }
+
+    try {
+        var res = await fetch(buildUrl('login'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user, password: pass })
+        });
+
+        var data = await res.json();
+
+        if (data.success) {
+            showResult('loginResult', '✅ ' + data.message, 'success');
+            updateStatus(data.username, data.userId);
+        } else {
+            showResult('loginResult', '❌ ' + (data.exception || data.message), 'error');
+            updateStatus(null, null);
+        }
+    } catch (err) {
+        showResult('loginResult', '❌ Error: ' + err.message, 'error');
+    }
+}
+
+// ============ LOGOUT ============
+async function handleLogout() {
+    if (!currentUser) {
+        showResult('loginResult', '⚠️ No hay sesión', 'info');
+        return;
+    }
+
+    try {
+        var res = await fetch(buildUrl('logout'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-Id': userId
+            }
+        });
+
+        var data = await res.json();
+
+        if (data.success) {
+            showResult('loginResult', '✅ ' + data.message, 'success');
+            updateStatus(null, null);
+        } else {
+            showResult('loginResult', '❌ ' + data.exception, 'error');
+        }
+    } catch (err) {
+        showResult('loginResult', '❌ Error: ' + err.message, 'error');
+    }
+}
+
+// ============ REGISTRO ============
+async function handleRegister() {
+    var user = document.getElementById('txtNewUser').value;
+    var pass = document.getElementById('txtNewPassword').value;
+
+    if (!user || !pass) {
+        showResult('registerResult', '❌ Usuario y contraseña requeridos', 'error');
+        return;
+    }
+
+    try {
+        var res = await fetch(buildUrl('register'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user, password: pass })
+        });
+
+        var data = await res.json();
+
+        if (data.success) {
+            showResult('registerResult', '✅ Usuario "' + user + '" creado! (SHA256)', 'success');
+            document.getElementById('txtNewUser').value = '';
+            document.getElementById('txtNewPassword').value = '';
+        } else {
+            showResult('registerResult', '❌ ' + data.exception, 'error');
+        }
+    } catch (err) {
+        showResult('registerResult', '❌ Error: ' + err.message, 'error');
+    }
+}
+
+// ============ ENDPOINT ============
+async function handleEndpoint(endpoint) {
+    if (!currentUser) {
+        showResult('endpointResult', '❌ Inicia sesión primero', 'error');
+        return;
+    }
+
+    try {
+        var res = await fetch(buildUrl(endpoint), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-Id': userId,
+                'Authorization': 'Bearer ' + currentUser
+            }
+        });
+
+        var data = await res.json();
+
+        if (res.status === 200 && data.success) {
+            showResult('endpointResult', '✅ ' + data.message, 'success');
+        } else if (res.status === 403) {
+            showResult('endpointResult', '🚫 ' + (data.exception || 'Acceso denegado'), 'error');
+        } else if (res.status === 401) {
+            showResult('endpointResult', '🔒 ' + (data.exception || 'No autorizado'), 'error');
+            updateStatus(null, null);
+        } else {
+            showResult('endpointResult', '❌ ' + JSON.stringify(data, null, 2), 'error');
+        }
+    } catch (err) {
+        showResult('endpointResult', '❌ Error: ' + err.message, 'error');
+    }
+}
+
+// ============ LISTAR ============
+async function handleListUsers() {
+    try {
+        var res = await fetch(buildUrl('api/users'));
+        var data = await res.json();
+        showResult('manageResult', JSON.stringify(data, null, 2), data.success ? 'success' : 'error');
+    } catch (err) {
+        showResult('manageResult', '❌ Error: ' + err.message, 'error');
+    }
+}
+
+async function handleListGroups() {
+    try {
+        var res = await fetch(buildUrl('api/groups'));
+        var data = await res.json();
+        showResult('manageResult', JSON.stringify(data, null, 2), data.success ? 'success' : 'error');
+    } catch (err) {
+        showResult('manageResult', '❌ Error: ' + err.message, 'error');
+    }
+}
+
+// ============ EVENTOS ============
+document.getElementById('btnLogin').onclick = handleLogin;
+document.getElementById('btnLogout').onclick = handleLogout;
+document.getElementById('btnRegister').onclick = handleRegister;
+document.getElementById('btnListUsers').onclick = handleListUsers;
+document.getElementById('btnListGroups').onclick = handleListGroups;
+
+document.querySelectorAll('[data-endpoint]').forEach(function(btn) {
+    btn.onclick = function() { handleEndpoint(this.dataset.endpoint); };
+});
+
+document.getElementById('txtUser').onkeypress = function(e) {
+    if (e.key === 'Enter') document.getElementById('txtPassword').focus();
+};
+document.getElementById('txtPassword').onkeypress = function(e) {
+    if (e.key === 'Enter') handleLogin();
+};
+
+updateStatus(null, null);
+</script>
+</body>
+</html>
