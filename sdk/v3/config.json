@@ -1,0 +1,10 @@
+{
+  "server": {
+    "ip": "127.0.0.1",
+    "port": 3000,
+    "default_path": "./frontend/default.html"
+  },
+  "database": {
+    "path": "./data/db.sqlite3"
+  }
+}

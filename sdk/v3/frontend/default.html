@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Prueba Login - SDK V3</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #1a73e8; }
+        .info-box {
+            background: #e8f0fe;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .info-box code {
+            background: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .form-group {
+            margin-bottom: 12px;
+        }
+        label {
+            display: inline-block;
+            width: 100px;
+            font-weight: bold;
+        }
+        input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px 5px 5px 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .btn-primary { background: #1a73e8; color: white; }
+        .btn-primary:hover { background: #1557b0; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #1e7e34; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #bd2130; }
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-info:hover { background: #117a8b; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #5a6268; }
+        .section {
+            margin-top: 20px;
+            border-top: 2px solid #e9ecef;
+            padding-top: 20px;
+        }
+        .endpoint-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .endpoint-grid button {
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+        }
+        .status-bar {
+            background: #e9ecef;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-online { background: #28a745; color: white; }
+        .badge-offline { background: #dc3545; color: white; }
+        #output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            min-height: 50px;
+        }
+        .success-text { color: #28a745; }
+        .error-text { color: #dc3545; }
+        .info-text { color: #17a2b8; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🔐 SDK/V3 - Sistema de Autenticación</h1>
+
+    <div class="info-box">
+        <strong>📌 Usuario de prueba:</strong><br>
+        👤 <code>usuarioX</code> | 🔑 <code>123456</code><br>
+        ✅ Permisos: <code>/print</code> <code>/log</code> <code>/help</code><br>
+        ❌ Sin permisos: <code>/sayHello</code> <code>/sayBye</code>
+    </div>
+
+    <div class="status-bar">
+        <span>👤 <strong id="statusUser">No autenticado</strong></span>
+        <span id="statusBadge" class="badge badge-offline">Sin sesión</span>
+    </div>
+
+    <!-- Login -->
+    <div class="section">
+        <h2>👤 Iniciar Sesión</h2>
+        <div class="form-group">
+            <label>Usuario:</label>
+            <input id="txtUser" type="text" placeholder="usuarioX" value="usuarioX">
+        </div>
+        <div class="form-group">
+            <label>Contraseña:</label>
+            <input id="txtPassword" type="password" placeholder="123456" value="123456">
+        </div>
+        <button class="btn-primary" id="btnLogin">Login</button>
+        <button class="btn-danger" id="btnLogout">Logout</button>
+    </div>
+
+    <!-- Registro -->
+    <div class="section">
+        <h2>📝 Registrar Usuario</h2>
+        <div class="form-group">
+            <label>Nuevo Usuario:</label>
+            <input id="txtNewUser" type="text" placeholder="Nuevo usuario">
+        </div>
+        <div class="form-group">
+            <label>Nueva Pass:</label>
+            <input id="txtNewPassword" type="password" placeholder="Nueva contraseña">
+        </div>
+        <button class="btn-success" id="btnRegister">Crear Usuario</button>
+        <small style="color: #6c757d; display: block; margin-top: 5px;">
+            🔐 Contraseña cifrada con SHA256
+        </small>
+    </div>
+
+    <!-- Endpoints -->
+    <div class="section">
+        <h2>🔒 Probar Endpoints</h2>
+        <div class="endpoint-grid">
+            <button class="btn-info" data-endpoint="print">🖨️ /print</button>
+            <button class="btn-info" data-endpoint="log">📋 /log</button>
+            <button class="btn-info" data-endpoint="help">❓ /help</button>
+            <button class="btn-secondary" data-endpoint="sayHello">👋 /sayHello</button>
+            <button class="btn-secondary" data-endpoint="sayBye">👋 /sayBye</button>
+        </div>
+    </div>
+
+    <!-- Output -->
+    <div class="section">
+        <h2>📤 Respuesta</h2>
+        <pre id="output">Esperando acción...</pre>
+    </div>
+</div>
+
+<script>
+// ============ ESTADO ============
+var currentUser = null;
+
+function updateStatus(username) {
+    var userEl = document.getElementById('statusUser');
+    var badgeEl = document.getElementById('statusBadge');
+    
+    if (username) {
+        userEl.textContent = username;
+        userEl.style.color = '#28a745';
+        badgeEl.textContent = '✅ Sesión activa';
+        badgeEl.className = 'badge badge-online';
+        currentUser = username;
+    } else {
+        userEl.textContent = 'No autenticado';
+        userEl.style.color = '#dc3545';
+        badgeEl.textContent = '❌ Sin sesión';
+        badgeEl.className = 'badge badge-offline';
+        currentUser = null;
+    }
+}
+
+function showOutput(data, type) {
+    var output = document.getElementById('output');
+    if (typeof data === 'string') {
+        output.textContent = data;
+    } else {
+        output.textContent = JSON.stringify(data, null, 2);
+    }
+    if (type === 'success') {
+        output.style.borderLeft = '4px solid #28a745';
+    } else if (type === 'error') {
+        output.style.borderLeft = '4px solid #dc3545';
+    } else {
+        output.style.borderLeft = '4px solid #17a2b8';
+    }
+}
+
+// ============ LOGIN ============
+async function onLoginClick() {
+    var username = document.getElementById('txtUser').value;
+    var password = document.getElementById('txtPassword').value;
+
+    if (!username || !password) {
+        showOutput('❌ Usuario y contraseña son requeridos', 'error');
+        return;
+    }
+
+    try {
+        var response = await fetch('/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password)
+        });
+
+        var data = await response.json();
+        showOutput(data, data.success ? 'success' : 'error');
+
+        if (data.success) {
+            updateStatus(username);
+        } else {
+            updateStatus(null);
+        }
+    } catch (error) {
+        showOutput('❌ Error de conexión: ' + error.message, 'error');
+    }
+}
+
+// ============ LOGOUT ============
+async function onLogoutClick() {
+    if (!currentUser) {
+        showOutput('⚠️ No hay sesión iniciada', 'info');
+        return;
+    }
+
+    try {
+        var response = await fetch('/logout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'username=' + encodeURIComponent(currentUser)
+        });
+
+        var data = await response.json();
+        showOutput(data, data.success ? 'success' : 'error');
+
+        if (data.success) {
+            updateStatus(null);
+        }
+    } catch (error) {
+        showOutput('❌ Error de conexión: ' + error.message, 'error');
+    }
+}
+
+// ============ REGISTRO ============
+async function onRegisterClick() {
+    var username = document.getElementById('txtNewUser').value;
+    var password = document.getElementById('txtNewPassword').value;
+
+    if (!username || !password) {
+        showOutput('❌ Usuario y contraseña son requeridos', 'error');
+        return;
+    }
+
+    try {
+        var response = await fetch('/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password)
+        });
+
+        var data = await response.json();
+        showOutput(data, data.success ? 'success' : 'error');
+
+        if (data.success) {
+            document.getElementById('txtNewUser').value = '';
+            document.getElementById('txtNewPassword').value = '';
+        }
+    } catch (error) {
+        showOutput('❌ Error de conexión: ' + error.message, 'error');
+    }
+}
+
+// ============ ENDPOINT ============
+async function onEndpointClick(endpoint) {
+    if (!currentUser) {
+        showOutput('❌ Primero iniciá sesión', 'error');
+        return;
+    }
+
+    try {
+        var response = await fetch('/' + endpoint + '?username=' + encodeURIComponent(currentUser));
+        var data = await response.json();
+        showOutput(data, data.success ? 'success' : 'error');
+    } catch (error) {
+        showOutput('❌ Error de conexión: ' + error.message, 'error');
+    }
+}
+
+// ============ EVENTOS ============
+document.getElementById('btnLogin').onclick = onLoginClick;
+document.getElementById('btnLogout').onclick = onLogoutClick;
+document.getElementById('btnRegister').onclick = onRegisterClick;
+
+document.querySelectorAll('[data-endpoint]').forEach(function(btn) {
+    btn.onclick = function() {
+        onEndpointClick(this.dataset.endpoint);
+    };
+});
+
+// Enter key
+document.getElementById('txtUser').onkeypress = function(e) {
+    if (e.key === 'Enter') document.getElementById('txtPassword').focus();
+};
+document.getElementById('txtPassword').onkeypress = function(e) {
+    if (e.key === 'Enter') onLoginClick();
+};
+
+// ============ INICIO ============
+updateStatus(null);
+showOutput('💡 Inicia sesión con usuarioX / 123456', 'info');
+</script>
+</body>
+</html>

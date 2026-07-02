@@ -1,0 +1,14 @@
+{
+  "name": "sdk-v3",
+  "version": "3.0.0",
+  "type": "module",
+  "description": "Sistema de autenticación y autorización con SHA256",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs",
+    "init-db": "node init-db.mjs"
+  },
+  "dependencies": {
+    "sqlite3": "^6.0.1"
+  }
+}
