@@ -7,80 +7,17 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="container">
-    <h1>🔐 SDK/V4 - Frontend</h1>
-    <p class="subtitle">Backend: <code>http://localhost:8080</code></p>
-
-    <div class="info-box">
-        <strong>📌 Usuario:</strong> <code>usuarioX</code> / <code>123456</code>
-        <span style="color:#28a745;">✅ /print, /log, /help</span>
-        <span style="color:#dc3545;">❌ /sayHello, /sayBye</span>
-    </div>
-
-    <div class="status-bar">
-        <span>👤 <strong id="statusUser">No autenticado</strong></span>
-        <span id="statusBadge" class="badge badge-offline">Sin sesión</span>
-    </div>
-
-    <!-- Login -->
-    <div class="section">
-        <h2>👤 Autenticación</h2>
-        <div class="form-group">
-            <label>Usuario:</label>
-            <input id="txtUser" type="text" value="usuarioX">
-        </div>
-        <div class="form-group">
-            <label>Contraseña:</label>
-            <input id="txtPassword" type="password" value="123456">
-        </div>
-        <button class="btn-primary" id="btnLogin">Login</button>
-        <button class="btn-danger" id="btnLogout">Logout</button>
-        <div id="loginResult" class="result"></div>
-    </div>
-
-    <!-- Registro -->
-    <div class="section">
-        <h2>📝 Registro</h2>
-        <div class="form-group">
-            <label>Usuario:</label>
-            <input id="txtNewUser" type="text" placeholder="Nuevo usuario">
-        </div>
-        <div class="form-group">
-            <label>Contraseña:</label>
-            <input id="txtNewPassword" type="password" placeholder="Nueva contraseña">
-        </div>
-        <button class="btn-success" id="btnRegister">Crear</button>
-        <div id="registerResult" class="result"></div>
-        <small>🔐 SHA256</small>
-    </div>
-
-    <!-- Endpoints -->
-    <div class="section">
-        <h2>🔒 Endpoints</h2>
-        <div class="endpoint-grid">
-            <button class="btn-info" data-endpoint="print">/print</button>
-            <button class="btn-info" data-endpoint="log">/log</button>
-            <button class="btn-info" data-endpoint="help">/help</button>
-            <button class="btn-secondary" data-endpoint="sayHello">/sayHello</button>
-            <button class="btn-secondary" data-endpoint="sayBye">/sayBye</button>
-        </div>
-        <div id="endpointResult" class="result"></div>
-    </div>
-
-    <!-- Gestión -->
-    <div class="section">
-        <h2>⚙️ Gestión</h2>
-        <button class="btn-info" id="btnListUsers">Ver Usuarios</button>
-        <button class="btn-info" id="btnListGroups">Ver Grupos</button>
-        <div id="manageResult" class="result"></div>
-    </div>
-</div>
+<div id="app"></div>
 
 <script>
-// ============ CONFIG ============
-var API_URL = 'http://localhost:8080'; // Sin barra al final
+// ============================================================
+// CONFIGURACIÓN
+// ============================================================
+var API_URL = 'http://localhost:8080';
 
-// ============ FUNCIÓN PARA CONSTRUIR URL ============
+// ============================================================
+// FUNCIÓN PARA CONSTRUIR URL
+// ============================================================
 function buildUrl(endpoint) {
     if (API_URL.endsWith('/')) {
         return API_URL + endpoint;
@@ -89,45 +26,378 @@ function buildUrl(endpoint) {
     }
 }
 
-var currentUser = null;
-var userId = null;
+// ============================================================
+// FUNCIÓN RPCWebAPIFetch (CORREGIDA)
+// ============================================================
+async function RPCWebAPIFetch(endpoint, content, method) {
+    method = method || 'POST';
+    var headers, options, response, data;
+    var url = buildUrl(endpoint);
+    
+    console.log('📤 === PETICIÓN ===');
+    console.log('📍 Endpoint:', endpoint);
+    console.log('👤 currentUser:', window.currentUser);
+    console.log('🆔 userId:', window.userId);
 
-// ============ UI ============
+    headers = {
+        'Content-Type': 'application/json'
+    };
+
+    // ⚠️ CRUCIAL: Verificar que userId existe
+    if (window.currentUser && window.userId) {
+        headers['X-User-Id'] = String(window.userId);
+        headers['Authorization'] = 'Bearer ' + window.currentUser;
+        console.log('📋 Cabeceras enviadas:', headers);
+    } else {
+        console.warn('⚠️ No hay sesión activa - cabeceras NO enviadas');
+    }
+
+    options = {
+        method: method,
+        headers: headers
+    };
+
+    if (content) {
+        options.body = JSON.stringify(content);
+    }
+
+    response = await fetch(url, options);
+    console.log('📥 Status:', response.status);
+
+    try {
+        data = await response.json();
+        console.log('📥 Respuesta:', data);
+    } catch (e) {
+        throw new Error('La respuesta no es JSON válido');
+    }
+
+    if (response.ok) {
+        return data;
+    } else if (response.status === 400) {
+        throw new Error(data.exception || 'Error en la solicitud (400)');
+    } else if (response.status === 401) {
+        throw new Error(data.exception || 'No autenticado (401)');
+    } else if (response.status === 403) {
+        throw new Error(data.exception || 'Acceso denegado (403)');
+    } else if (response.status === 404) {
+        throw new Error(data.exception || 'Método no encontrado (404)');
+    } else if (response.status === 500) {
+        throw new Error(data.exception || 'Error interno del servidor (500)');
+    } else {
+        throw new Error('Error inesperado (' + response.status + ')');
+    }
+}
+
+// ============================================================
+// ESTADO
+// ============================================================
+window.currentUser = null;
+window.userId = null;
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function createElement(tag, attributes, children) {
+    var el, key, child;
+    
+    el = document.createElement(tag);
+    
+    if (attributes) {
+        for (key in attributes) {
+            if (key === 'className') {
+                el.className = attributes[key];
+            } else if (key === 'textContent') {
+                el.textContent = attributes[key];
+            } else if (key === 'style') {
+                for (var styleKey in attributes.style) {
+                    el.style[styleKey] = attributes.style[styleKey];
+                }
+            } else {
+                el.setAttribute(key, attributes[key]);
+            }
+        }
+    }
+    
+    if (children) {
+        for (var i = 0; i < children.length; i++) {
+            child = children[i];
+            if (typeof child === 'string') {
+                el.appendChild(document.createTextNode(child));
+            } else {
+                el.appendChild(child);
+            }
+        }
+    }
+    
+    return el;
+}
+
 function showResult(id, msg, type) {
     var el = document.getElementById(id);
+    if (!el) return;
+    
     el.className = 'result show ' + type;
+    
+    while (el.firstChild) {
+        el.removeChild(el.firstChild);
+    }
+    
     if (typeof msg === 'object') {
         el.textContent = JSON.stringify(msg, null, 2);
     } else {
-        el.innerHTML = msg;
+        el.textContent = msg;
     }
 }
 
 function updateStatus(user, id) {
-    var userEl = document.getElementById('statusUser');
-    var badgeEl = document.getElementById('statusBadge');
+    var userEl, badgeEl;
     
-    if (user) {
+    userEl = document.getElementById('statusUser');
+    badgeEl = document.getElementById('statusBadge');
+    
+    if (user && id) {
         userEl.textContent = user + ' (ID: ' + id + ')';
         userEl.style.color = '#28a745';
         badgeEl.textContent = '✅ Activa';
         badgeEl.className = 'badge badge-online';
-        currentUser = user;
-        userId = id;
+        window.currentUser = user;
+        window.userId = parseInt(id);
+        console.log('✅ Sesión actualizada:', { user: window.currentUser, id: window.userId });
     } else {
         userEl.textContent = 'No autenticado';
         userEl.style.color = '#dc3545';
         badgeEl.textContent = '❌ Sin sesión';
         badgeEl.className = 'badge badge-offline';
-        currentUser = null;
-        userId = null;
+        window.currentUser = null;
+        window.userId = null;
+        console.log('❌ Sesión cerrada');
     }
+}
+
+// ============================================================
+// CONSTRUIR UI
+// ============================================================
+function buildUI() {
+    var app, container, title, subtitle, infoBox, statusBar, sections;
+    
+    app = document.getElementById('app');
+    
+    container = document.createElement('div');
+    container.className = 'container';
+    
+    title = document.createElement('h1');
+    title.textContent = '🔐 SDK/V4 - Frontend';
+    container.appendChild(title);
+    
+    subtitle = document.createElement('p');
+    subtitle.className = 'subtitle';
+    subtitle.textContent = 'Backend: ' + API_URL;
+    container.appendChild(subtitle);
+    
+    infoBox = createElement('div', { className: 'info-box' }, [
+        createElement('strong', { textContent: '📌 Usuario:' }),
+        document.createTextNode(' '),
+        createElement('code', { textContent: 'usuarioX' }),
+        document.createTextNode(' / '),
+        createElement('code', { textContent: '123456' }),
+        document.createElement('br'),
+        createElement('span', { style: { color: '#28a745' }, textContent: '✅ /print, /log, /help' }),
+        document.createTextNode(' '),
+        createElement('span', { style: { color: '#dc3545' }, textContent: '❌ /sayHello, /sayBye' })
+    ]);
+    container.appendChild(infoBox);
+    
+    statusBar = createElement('div', { className: 'status-bar' }, [
+        createElement('span', { textContent: '👤 ' }),
+        createElement('strong', { id: 'statusUser', textContent: 'No autenticado' }),
+        createElement('span', { id: 'statusBadge', className: 'badge badge-offline', textContent: 'Sin sesión' })
+    ]);
+    container.appendChild(statusBar);
+    
+    sections = document.createElement('div');
+    sections.appendChild(buildLoginSection());
+    sections.appendChild(buildRegisterSection());
+    sections.appendChild(buildEndpointsSection());
+    sections.appendChild(buildManageSection());
+    container.appendChild(sections);
+    
+    app.appendChild(container);
+}
+
+function buildLoginSection() {
+    var section, title, userGroup, passGroup, btnGroup, btnLogin, btnLogout, result;
+    
+    section = createElement('div', { className: 'section' });
+    title = createElement('h2', { textContent: '👤 Autenticación' });
+    section.appendChild(title);
+    
+    userGroup = createFormGroup('Usuario:', 'txtUser', 'text', 'usuarioX');
+    passGroup = createFormGroup('Contraseña:', 'txtPassword', 'password', '123456');
+    section.appendChild(userGroup);
+    section.appendChild(passGroup);
+    
+    btnGroup = document.createElement('div');
+    btnGroup.className = 'btn-group';
+    
+    btnLogin = createElement('button', { className: 'btn-primary', id: 'btnLogin', textContent: 'Login' });
+    btnLogout = createElement('button', { className: 'btn-danger', id: 'btnLogout', textContent: 'Logout' });
+    
+    btnGroup.appendChild(btnLogin);
+    btnGroup.appendChild(btnLogout);
+    section.appendChild(btnGroup);
+    
+    result = document.createElement('div');
+    result.id = 'loginResult';
+    result.className = 'result';
+    section.appendChild(result);
+    
+    return section;
+}
+
+function buildRegisterSection() {
+    var section, title, userGroup, passGroup, btnRegister, small, result;
+    
+    section = createElement('div', { className: 'section' });
+    title = createElement('h2', { textContent: '📝 Registro' });
+    section.appendChild(title);
+    
+    userGroup = createFormGroup('Usuario:', 'txtNewUser', 'text', 'Nuevo usuario');
+    passGroup = createFormGroup('Contraseña:', 'txtNewPassword', 'password', 'Nueva contraseña');
+    section.appendChild(userGroup);
+    section.appendChild(passGroup);
+    
+    btnRegister = createElement('button', { className: 'btn-success', id: 'btnRegister', textContent: 'Crear' });
+    section.appendChild(btnRegister);
+    
+    small = createElement('small', { textContent: '🔐 SHA256' });
+    section.appendChild(small);
+    
+    result = document.createElement('div');
+    result.id = 'registerResult';
+    result.className = 'result';
+    section.appendChild(result);
+    
+    return section;
+}
+
+function buildEndpointsSection() {
+    var section, title, grid, endpoints, i, btn, result;
+    
+    section = createElement('div', { className: 'section' });
+    title = createElement('h2', { textContent: '🔒 Endpoints' });
+    section.appendChild(title);
+    
+    grid = document.createElement('div');
+    grid.className = 'endpoint-grid';
+    
+    endpoints = [
+        { path: 'print', label: '/print', className: 'btn-info' },
+        { path: 'log', label: '/log', className: 'btn-info' },
+        { path: 'help', label: '/help', className: 'btn-info' },
+        { path: 'sayHello', label: '/sayHello', className: 'btn-secondary' },
+        { path: 'sayBye', label: '/sayBye', className: 'btn-secondary' }
+    ];
+    
+    for (i = 0; i < endpoints.length; i++) {
+        btn = createElement('button', {
+            className: endpoints[i].className,
+            'data-endpoint': endpoints[i].path,
+            textContent: endpoints[i].label
+        });
+        grid.appendChild(btn);
+    }
+    
+    section.appendChild(grid);
+    
+    result = document.createElement('div');
+    result.id = 'endpointResult';
+    result.className = 'result';
+    section.appendChild(result);
+    
+    return section;
+}
+
+function buildManageSection() {
+    var section, title, btnGroup, btnUsers, btnGroups, result;
+    
+    section = createElement('div', { className: 'section' });
+    title = createElement('h2', { textContent: '⚙️ Gestión' });
+    section.appendChild(title);
+    
+    btnGroup = document.createElement('div');
+    btnGroup.className = 'btn-group';
+    
+    btnUsers = createElement('button', { className: 'btn-info', id: 'btnListUsers', textContent: 'Ver Usuarios' });
+    btnGroups = createElement('button', { className: 'btn-info', id: 'btnListGroups', textContent: 'Ver Grupos' });
+    
+    btnGroup.appendChild(btnUsers);
+    btnGroup.appendChild(btnGroups);
+    section.appendChild(btnGroup);
+    
+    result = document.createElement('div');
+    result.id = 'manageResult';
+    result.className = 'result';
+    section.appendChild(result);
+    
+    return section;
+}
+
+function createFormGroup(labelText, inputId, inputType, placeholder) {
+    var group, label, input;
+    
+    group = document.createElement('div');
+    group.className = 'form-group';
+    
+    label = document.createElement('label');
+    label.textContent = labelText;
+    group.appendChild(label);
+    
+    input = document.createElement('input');
+    input.id = inputId;
+    input.type = inputType;
+    input.placeholder = placeholder;
+    
+    if (inputId === 'txtUser') {
+        input.value = 'usuarioX';
+    }
+    if (inputId === 'txtPassword') {
+        input.value = '123456';
+    }
+    
+    group.appendChild(input);
+    return group;
+}
+
+// ============================================================
+// MANEJADORES
+// ============================================================
+function setupEventListeners() {
+    document.getElementById('btnLogin').addEventListener('click', handleLogin);
+    document.getElementById('btnLogout').addEventListener('click', handleLogout);
+    document.getElementById('btnRegister').addEventListener('click', handleRegister);
+    document.getElementById('btnListUsers').addEventListener('click', handleListUsers);
+    document.getElementById('btnListGroups').addEventListener('click', handleListGroups);
+    
+    document.querySelectorAll('[data-endpoint]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            handleEndpoint(this.dataset.endpoint);
+        });
+    });
+    
+    document.getElementById('txtUser').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') document.getElementById('txtPassword').focus();
+    });
+    document.getElementById('txtPassword').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') handleLogin();
+    });
 }
 
 // ============ LOGIN ============
 async function handleLogin() {
-    var user = document.getElementById('txtUser').value;
-    var pass = document.getElementById('txtPassword').value;
+    var user, pass, data;
+    
+    user = document.getElementById('txtUser').value;
+    pass = document.getElementById('txtPassword').value;
 
     if (!user || !pass) {
         showResult('loginResult', '❌ Usuario y contraseña requeridos', 'error');
@@ -135,59 +405,42 @@ async function handleLogin() {
     }
 
     try {
-        var res = await fetch(buildUrl('login'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: user, password: pass })
-        });
-
-        var data = await res.json();
-
+        data = await RPCWebAPIFetch('login', { username: user, password: pass });
         if (data.success) {
             showResult('loginResult', '✅ ' + data.message, 'success');
-            updateStatus(data.username, data.userId);
+            updateStatus(data.username, parseInt(data.userId));
         } else {
-            showResult('loginResult', '❌ ' + (data.exception || data.message), 'error');
+            showResult('loginResult', '❌ ' + (data.message || 'Login fallido'), 'error');
             updateStatus(null, null);
         }
     } catch (err) {
-        showResult('loginResult', '❌ Error: ' + err.message, 'error');
+        showResult('loginResult', '❌ ' + err.message, 'error');
+        updateStatus(null, null);
     }
 }
 
 // ============ LOGOUT ============
 async function handleLogout() {
-    if (!currentUser) {
+    if (!window.currentUser) {
         showResult('loginResult', '⚠️ No hay sesión', 'info');
         return;
     }
 
     try {
-        var res = await fetch(buildUrl('logout'), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-User-Id': userId
-            }
-        });
-
-        var data = await res.json();
-
-        if (data.success) {
-            showResult('loginResult', '✅ ' + data.message, 'success');
-            updateStatus(null, null);
-        } else {
-            showResult('loginResult', '❌ ' + data.exception, 'error');
-        }
+        var data = await RPCWebAPIFetch('logout', null, 'POST');
+        showResult('loginResult', '✅ ' + data.message, 'success');
+        updateStatus(null, null);
     } catch (err) {
-        showResult('loginResult', '❌ Error: ' + err.message, 'error');
+        showResult('loginResult', '❌ ' + err.message, 'error');
     }
 }
 
 // ============ REGISTRO ============
 async function handleRegister() {
-    var user = document.getElementById('txtNewUser').value;
-    var pass = document.getElementById('txtNewPassword').value;
+    var user, pass, data;
+    
+    user = document.getElementById('txtNewUser').value;
+    pass = document.getElementById('txtNewPassword').value;
 
     if (!user || !pass) {
         showResult('registerResult', '❌ Usuario y contraseña requeridos', 'error');
@@ -195,100 +448,70 @@ async function handleRegister() {
     }
 
     try {
-        var res = await fetch(buildUrl('register'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: user, password: pass })
-        });
-
-        var data = await res.json();
-
+        data = await RPCWebAPIFetch('register', { username: user, password: pass });
+        showResult('registerResult', '✅ ' + data.message, 'success');
         if (data.success) {
-            showResult('registerResult', '✅ Usuario "' + user + '" creado! (SHA256)', 'success');
             document.getElementById('txtNewUser').value = '';
             document.getElementById('txtNewPassword').value = '';
-        } else {
-            showResult('registerResult', '❌ ' + data.exception, 'error');
         }
     } catch (err) {
-        showResult('registerResult', '❌ Error: ' + err.message, 'error');
+        showResult('registerResult', '❌ ' + err.message, 'error');
     }
 }
 
-// ============ ENDPOINT ============
+// ============ ENDPOINT (CORREGIDO) ============
 async function handleEndpoint(endpoint) {
-    if (!currentUser) {
+    console.log('🔍 ENDPOINT:', endpoint);
+    console.log('👤 currentUser:', window.currentUser);
+    console.log('🆔 userId:', window.userId);
+    
+    if (!window.currentUser) {
         showResult('endpointResult', '❌ Inicia sesión primero', 'error');
         return;
     }
 
+    if (!window.userId) {
+        showResult('endpointResult', '❌ Error: userId no disponible', 'error');
+        return;
+    }
+
     try {
-        var res = await fetch(buildUrl(endpoint), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-User-Id': userId,
-                'Authorization': 'Bearer ' + currentUser
-            }
-        });
-
-        var data = await res.json();
-
-        if (res.status === 200 && data.success) {
-            showResult('endpointResult', '✅ ' + data.message, 'success');
-        } else if (res.status === 403) {
-            showResult('endpointResult', '🚫 ' + (data.exception || 'Acceso denegado'), 'error');
-        } else if (res.status === 401) {
-            showResult('endpointResult', '🔒 ' + (data.exception || 'No autorizado'), 'error');
-            updateStatus(null, null);
-        } else {
-            showResult('endpointResult', '❌ ' + JSON.stringify(data, null, 2), 'error');
-        }
+        var data = await RPCWebAPIFetch(endpoint, null, 'POST');
+        showResult('endpointResult', '✅ ' + data.message, 'success');
     } catch (err) {
-        showResult('endpointResult', '❌ Error: ' + err.message, 'error');
+        showResult('endpointResult', '❌ ' + err.message, 'error');
     }
 }
 
 // ============ LISTAR ============
 async function handleListUsers() {
     try {
-        var res = await fetch(buildUrl('api/users'));
-        var data = await res.json();
-        showResult('manageResult', JSON.stringify(data, null, 2), data.success ? 'success' : 'error');
+        var data = await RPCWebAPIFetch('api/users', null, 'GET');
+        showResult('manageResult', JSON.stringify(data, null, 2), 'success');
     } catch (err) {
-        showResult('manageResult', '❌ Error: ' + err.message, 'error');
+        showResult('manageResult', '❌ ' + err.message, 'error');
     }
 }
 
 async function handleListGroups() {
     try {
-        var res = await fetch(buildUrl('api/groups'));
-        var data = await res.json();
-        showResult('manageResult', JSON.stringify(data, null, 2), data.success ? 'success' : 'error');
+        var data = await RPCWebAPIFetch('api/groups', null, 'GET');
+        showResult('manageResult', JSON.stringify(data, null, 2), 'success');
     } catch (err) {
-        showResult('manageResult', '❌ Error: ' + err.message, 'error');
+        showResult('manageResult', '❌ ' + err.message, 'error');
     }
 }
 
-// ============ EVENTOS ============
-document.getElementById('btnLogin').onclick = handleLogin;
-document.getElementById('btnLogout').onclick = handleLogout;
-document.getElementById('btnRegister').onclick = handleRegister;
-document.getElementById('btnListUsers').onclick = handleListUsers;
-document.getElementById('btnListGroups').onclick = handleListGroups;
-
-document.querySelectorAll('[data-endpoint]').forEach(function(btn) {
-    btn.onclick = function() { handleEndpoint(this.dataset.endpoint); };
+// ============================================================
+// INICIALIZAR
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 SDK/V4 - Frontend iniciado');
+    buildUI();
+    setupEventListeners();
+    updateStatus(null, null);
+    showResult('loginResult', '💡 Inicia sesión con usuarioX / 123456', 'info');
 });
-
-document.getElementById('txtUser').onkeypress = function(e) {
-    if (e.key === 'Enter') document.getElementById('txtPassword').focus();
-};
-document.getElementById('txtPassword').onkeypress = function(e) {
-    if (e.key === 'Enter') handleLogin();
-};
-
-updateStatus(null, null);
 </script>
 </body>
 </html>

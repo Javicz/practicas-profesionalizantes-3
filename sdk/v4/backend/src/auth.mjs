@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { getDB } from './database.mjs';
+import { getUserByUsername, userHasPermission } from './model.mjs';
 
 // ============ SHA256 ============
 export function hashSHA256(text) {
@@ -8,7 +8,7 @@ export function hashSHA256(text) {
         .digest('hex');
 }
 
-// ============ SESIONES ============
+// ============ SESIONES EN MEMORIA ============
 var sessions = new Map();
 
 export function getSession(userId) {
@@ -26,8 +26,13 @@ export function createSession(userId, username) {
     return session;
 }
 
-export function destroySession(userId) {
-    sessions.delete(userId);
+export function disableSession(userId) {
+    var session = sessions.get(userId);
+    if (session) {
+        session.status = 'disabled';
+        return session;
+    }
+    return null;
 }
 
 export function isSessionActive(userId) {
@@ -37,85 +42,90 @@ export function isSessionActive(userId) {
 
 // ============ AUTENTICADOR ============
 export function authenticate(db, username, password) {
-    var user, hashedPassword, isValid;
+    var user, hashedPassword, isValid, session;
     
-    var sql = 'SELECT id, username, password_hash FROM user WHERE username = ?';
-    var stmt = db.prepare(sql);
-    user = stmt.get(username);
-    
-    if (!user) {
-        return { success: false, code: 401, message: 'Usuario no encontrado' };
-    }
+    return getUserByUsername(db, username)
+        .then(function(userData) {
+            user = userData;
+            
+            if (!user) {
+                return { success: false, code: 401, message: 'Usuario no encontrado' };
+            }
 
-    hashedPassword = hashSHA256(password);
-    isValid = (user.password_hash === hashedPassword);
-    
-    if (!isValid) {
-        return { success: false, code: 401, message: 'Contraseña incorrecta' };
-    }
+            hashedPassword = hashSHA256(password);
+            isValid = (user.password_hash === hashedPassword);
+            
+            if (!isValid) {
+                return { success: false, code: 401, message: 'Contraseña incorrecta' };
+            }
 
-    var session = getSession(user.id);
-    if (!session) {
-        session = createSession(user.id, user.username);
-    } else {
-        session.status = 'active';
-    }
+            session = getSession(user.id);
+            if (session && session.status === 'active') {
+                return {
+                    success: true,
+                    code: 200,
+                    userId: user.id,
+                    username: user.username,
+                    session: session,
+                    message: 'Sesión recuperada'
+                };
+            }
 
-    return {
-        success: true,
-        code: 200,
-        userId: user.id,
-        username: user.username,
-        session: session
-    };
+            session = createSession(user.id, user.username);
+            return {
+                success: true,
+                code: 200,
+                userId: user.id,
+                username: user.username,
+                session: session,
+                message: 'Sesión creada'
+            };
+        });
 }
 
 // ============ LOGOUT ============
 export function logout(userId) {
-    var session = getSession(userId);
+    var session = disableSession(userId);
     if (session) {
-        session.status = 'disabled';
-        return { success: true, message: 'Sesión cerrada' };
+        return { success: true, code: 200, message: 'Sesión cerrada correctamente' };
     }
-    return { success: false, message: 'No hay sesión activa' };
+    return { success: false, code: 400, message: 'No hay sesión activa' };
 }
 
 // ============ AUTORIZADOR ============
 export function authorize(db, userId, endpointPath) {
-    var sql = `
-        SELECT COUNT(*) as total
-        FROM access a
-        JOIN members m ON a.id_group = m.id_group
-        JOIN endpoint e ON a.id_endpoint = e.id
-        WHERE m.id_user = ? AND e.path = ?
-    `;
-    var stmt = db.prepare(sql);
-    var row = stmt.get(userId, endpointPath);
-    return row.total > 0;
+    return userHasPermission(db, userId, endpointPath);
 }
 
-// ============ VALIDAR CABECERAS ============
+// ============ VALIDAR CABECERAS (CORREGIDO) ============
 export function validateHeaders(headers) {
     var userId = headers['x-user-id'];
     var auth = headers['authorization'];
     
+    console.log('📋 Validando cabeceras:', { userId: userId, auth: auth });
+    
     if (!userId) {
+        console.warn('❌ X-User-Id no encontrado');
         return { valid: false, code: 401, message: 'X-User-Id requerido' };
     }
     
     if (!auth) {
+        console.warn('❌ Authorization no encontrado');
         return { valid: false, code: 401, message: 'Authorization requerido' };
     }
     
     var parts = auth.split(' ');
     if (parts.length !== 2 || parts[0] !== 'Bearer') {
+        console.warn('❌ Authorization mal formado:', auth);
         return { valid: false, code: 401, message: 'Authorization debe ser: Bearer <token>' };
     }
     
     var userIdNum = parseInt(userId);
     if (isNaN(userIdNum)) {
+        console.warn('❌ userId no es número:', userId);
         return { valid: false, code: 400, message: 'X-User-Id debe ser número' };
     }
     
+    console.log('✅ Cabeceras válidas - userId:', userIdNum);
     return { valid: true, userId: userIdNum, token: parts[1] };
 }

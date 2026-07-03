@@ -56,7 +56,11 @@ function startServer() {
     console.log('  GET /api/users - Listar usuarios');
     console.log('  GET /api/groups - Listar grupos');
     console.log('  POST /api/admin/group/create - Crear grupo');
-    console.log('  POST /print, /log, /help, /sayHello, /sayBye - Protegidos');
+    console.log('  POST /print - Endpoint protegido');
+    console.log('  POST /log - Endpoint protegido');
+    console.log('  POST /help - Endpoint protegido');
+    console.log('  POST /sayHello - Endpoint protegido');
+    console.log('  POST /sayBye - Endpoint protegido');
     console.log('🔐 Usuario X tiene permisos para: /print, /log, /help');
     console.log('❌ Sin permisos: /sayHello, /sayBye');
 }

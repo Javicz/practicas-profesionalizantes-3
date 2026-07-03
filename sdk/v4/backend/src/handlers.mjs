@@ -1,6 +1,7 @@
 import { getDB } from './database.mjs';
 import { authenticate, logout, authorize, validateHeaders, isSessionActive } from './auth.mjs';
 import { hashSHA256 } from './auth.mjs';
+import { createUser } from './model.mjs';
 
 // ============ HELPERS ============
 function sendResponse(response, code, data) {
@@ -37,18 +38,22 @@ export function loginHandler() {
                 }
 
                 var db = getDB();
-                var result = authenticate(db, username, password);
-
-                if (result.success) {
-                    sendResponse(response, 200, {
-                        success: true,
-                        userId: result.userId,
-                        username: result.username,
-                        message: 'Login exitoso'
+                authenticate(db, username, password)
+                    .then(function(result) {
+                        if (result.success) {
+                            sendResponse(response, 200, {
+                                success: true,
+                                userId: result.userId,
+                                username: result.username,
+                                message: result.message
+                            });
+                        } else {
+                            sendError(response, result.code || 401, 'UNAUTHORIZED', [result.message]);
+                        }
+                    })
+                    .catch(function(err) {
+                        sendError(response, 500, 'INTERNAL_ERROR', [err.message]);
                     });
-                } else {
-                    sendError(response, result.code || 401, 'UNAUTHORIZED', [result.message]);
-                }
             } catch (err) {
                 sendError(response, 400, 'BAD_REQUEST', ['JSON inválido']);
             }
@@ -103,28 +108,29 @@ export function registerHandler() {
                 }
 
                 var db = getDB();
-                var hashedPassword = hashSHA256(password);
-                var sql = 'INSERT INTO user (username, password_hash) VALUES (?, ?)';
-                var stmt = db.prepare(sql);
-                var result = stmt.run(username, hashedPassword);
-
-                sendResponse(response, 200, {
-                    success: true,
-                    user: { id: result.lastInsertRowid, username: username },
-                    message: 'Usuario creado con SHA256'
-                });
+                createUser(db, username, password)
+                    .then(function(user) {
+                        sendResponse(response, 200, {
+                            success: true,
+                            user: user,
+                            message: 'Usuario creado con SHA256'
+                        });
+                    })
+                    .catch(function(err) {
+                        sendError(response, 500, 'INTERNAL_ERROR', [err.message]);
+                    });
             } catch (err) {
-                sendError(response, 500, 'INTERNAL_ERROR', [err.message]);
+                sendError(response, 400, 'BAD_REQUEST', ['JSON inválido']);
             }
         });
     };
 }
 
-// ============ HANDLER: PROTEGIDOS ============
+// ============ HANDLER: PROTEGIDOS (CORREGIDO) ============
 export function createProtectedHandler(endpointPath) {
     return function(request, response) {
-        if (request.method !== 'POST' && request.method !== 'GET') {
-            sendError(response, 405, 'METHOD_NOT_ALLOWED', ['Usa POST o GET']);
+        if (request.method !== 'POST') {
+            sendError(response, 405, 'METHOD_NOT_ALLOWED', ['Usa POST']);
             return;
         }
 
@@ -142,19 +148,24 @@ export function createProtectedHandler(endpointPath) {
             return;
         }
 
-        var hasPermission = authorize(db, userId, endpointPath);
-        if (!hasPermission) {
-            sendError(response, 403, 'FORBIDDEN', ['No tienes permisos para ' + endpointPath]);
-            return;
-        }
+        authorize(db, userId, endpointPath)
+            .then(function(hasPermission) {
+                if (!hasPermission) {
+                    sendError(response, 403, 'FORBIDDEN', ['No tienes permisos para ' + endpointPath]);
+                    return;
+                }
 
-        sendResponse(response, 200, {
-            success: true,
-            message: 'Endpoint ' + endpointPath + ' ejecutado',
-            endpoint: endpointPath,
-            userId: userId,
-            timestamp: new Date().toISOString()
-        });
+                sendResponse(response, 200, {
+                    success: true,
+                    message: 'Endpoint ' + endpointPath + ' ejecutado',
+                    endpoint: endpointPath,
+                    userId: userId,
+                    timestamp: new Date().toISOString()
+                });
+            })
+            .catch(function(err) {
+                sendError(response, 500, 'INTERNAL_ERROR', [err.message]);
+            });
     };
 }
 
