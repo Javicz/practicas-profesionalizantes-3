@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Test Register</title>
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="w3-light-grey">
+    <wc-register-form-view></wc-register-form-view>
+</body>
+<script>
+// ========== CLASES DE ERROR ==========
+class SpecificationError extends Error {
+    constructor(data) {
+        super("Error de especificación");
+        this.data = data;
+        this.name = "SpecificationError";
+    }
+}
+
+class UnauthorizedError extends Error {
+    constructor(data) {
+        super("No autorizado");
+        this.data = data;
+        this.name = "UnauthorizedError";
+    }
+}
+
+class DomainError extends Error {
+    constructor(data) {
+        super("Error del dominio");
+        this.data = data;
+        this.name = "DomainError";
+    }
+}
+
+class ProgramError extends Error {
+    constructor(data) {
+        super("Error interno del servidor");
+        this.data = data;
+        this.name = "ProgramError";
+    }
+}
+
+// ========== FUNCIÓN RPCWebAPIFetch ==========
+async function RPCWebAPIFetch(path, body = {}) {
+    const API = "http://127.0.0.1:3000";
+    
+    const headers = {
+        "Content-Type": "application/json"
+    };
+    
+    const userId = localStorage.getItem("userId");
+    const apiKey = localStorage.getItem("apiKey");
+    if (userId && apiKey) {
+        headers["x-user-id"] = userId;
+        headers["x-api-key"] = apiKey;
+    }
+
+    try {
+        const res = await fetch(API + path, {
+            method: "POST",
+            headers: headers,
+            body: JSON.stringify(body)
+        });
+
+        switch (res.status) {
+            case 200:
+                return await res.json();
+
+            case 400:
+                throw new SpecificationError(await res.json());
+
+            case 401:
+                throw new UnauthorizedError(await res.json());
+
+            case 422:
+                throw new DomainError(await res.json());
+
+            case 500:
+                throw new ProgramError(await res.json());
+
+            default:
+                throw new Error("Respuesta inesperada del servidor.");
+        }
+    } catch (error) {
+        if (error instanceof SpecificationError || 
+            error instanceof UnauthorizedError || 
+            error instanceof DomainError || 
+            error instanceof ProgramError) {
+            throw error;
+        }
+        throw new Error(`Error de red: ${error.message}`);
+    }
+}
+
+// ========== FUNCIÓN PARA MANEJAR ERRORES ==========
+function handleRPCError(error) {
+    if (error instanceof UnauthorizedError) {
+        return "No autorizado";
+    }
+
+    if (error instanceof DomainError) {
+        return error.data.message || error.data.error || "Error en los datos";
+    }
+
+    if (error instanceof SpecificationError) {
+        return error.data.message || error.data.error || "Error en la solicitud";
+    }
+
+    if (error instanceof ProgramError) {
+        return "Error interno del servidor";
+    }
+
+    return error.message || "Error inesperado";
+}
+
+// ========== CREATE ICON ==========
+function createIcon(classes) {
+    var icon = document.createElement("i");
+    if (classes && classes.length > 0) {
+        icon.classList.add.apply(icon.classList, classes);
+    }
+    return icon;
+}
+
+// ========== CREATE REGISTER FORM ==========
+function createRegisterForm() {
+    // 1. Crear elementos
+    var container = document.createElement("div");
+    var autoWrapper = document.createElement("div");
+    var card = document.createElement("div");
+    var cardBody = document.createElement("div");
+    
+    // Header del form
+    var header = document.createElement("div");
+    var logo = document.createElement("img");
+    var title = document.createElement("p");
+    var titleText = document.createTextNode("Registrarse");
+    
+    // Campos
+    var usernameWrapper = document.createElement("div");
+    var usernameInput = document.createElement("input");
+    
+    var emailWrapper = document.createElement("div");
+    var emailInput = document.createElement("input");
+    
+    var passwordWrapper = document.createElement("div");
+    var passwordInput = document.createElement("input");
+    
+    // Checkbox y link
+    var optionsRow = document.createElement("div");
+    var checkboxCol = document.createElement("div");
+    var checkboxContainer = document.createElement("div");
+    var checkbox = document.createElement("input");
+    var checkboxLabel = document.createElement("label");
+    var checkboxText = document.createTextNode("Recuerdame");
+    
+    var linkCol = document.createElement("div");
+    var resetLink = document.createElement("a");
+    var resetText = document.createTextNode("");
+    
+    // Botón principal
+    var submitButton = document.createElement("button");
+    var submitText = document.createTextNode("Registrarse");
+    
+    // Footer del card
+    var cardFooter = document.createElement("div");
+    var footerP = document.createElement("p");
+    var warningSpan = document.createElement("span");
+    var warningText = document.createTextNode("ya tienes una cuenta? ");
+    var loginLink = document.createElement("a");
+    var loginText = document.createTextNode(" iniciar sesion aqui");
+
+    // 2. Asignar clases
+    container.classList.add("w3-padding-32");
+    autoWrapper.classList.add("w3-auto");
+    card.classList.add("w3-white", "w3-round", "w3-margin-bottom", "w3-border");
+    cardBody.classList.add("w3-padding-large");
+    
+    header.classList.add("w3-center", "w3-padding-16");
+    logo.classList.add("w3-image");
+    
+    usernameWrapper.classList.add("w3-margin-bottom");
+    usernameInput.classList.add("w3-input", "w3-round", "w3-border");
+    
+    emailWrapper.classList.add("w3-margin-bottom");
+    emailInput.classList.add("w3-input", "w3-round", "w3-border");
+    
+    passwordWrapper.classList.add("w3-margin-bottom");
+    passwordInput.classList.add("w3-input", "w3-round", "w3-border");
+    
+    optionsRow.classList.add("w3-row", "w3-margin-bottom");
+    checkboxCol.classList.add("w3-col", "m6");
+    checkboxContainer.classList.add("icheck-material-white");
+    checkbox.classList.add("w3-check");
+    
+    linkCol.classList.add("w3-col", "m6", "w3-right-align");
+    
+    submitButton.classList.add("w3-button", "w3-round", "w3-margin-bottom", "w3-primary", "w3-block");
+    
+    cardFooter.classList.add("w3-center", "w3-border-top");
+    footerP.classList.add("w3-margin");
+    warningSpan.classList.add("w3-text-warning");
+
+    // 3. Asignar estilos
+    autoWrapper.style.width = "380px";
+
+    // 4. Asignar atributos
+    logo.src = "./assets/admin-logo.png";
+    logo.alt = "w3mix";
+    
+    usernameInput.type = "text";
+    usernameInput.placeholder = "Ingresa tu nombre";
+    usernameInput.id = "register-username";
+    usernameInput.name = "username";
+    usernameInput.required = true;
+    
+    emailInput.type = "email";
+    emailInput.placeholder = "Ingresa tu email";
+    emailInput.id = "register-email";
+    emailInput.name = "email";
+    emailInput.required = true;
+    
+    passwordInput.type = "password";
+    passwordInput.placeholder = "Ingresa tu contraseña";
+    passwordInput.id = "register-password";
+    passwordInput.name = "password";
+    passwordInput.required = true;
+    
+    checkbox.type = "checkbox";
+    checkbox.id = "user-checkbox-register";
+    checkbox.checked = true;
+    checkboxLabel.htmlFor = "user-checkbox-register";
+    
+    resetLink.href = "reset-password.html";
+    
+    submitButton.type = "button";
+    submitButton.id = "register-submit";
+    
+    loginLink.href = "WCLoginFormView.html";
+
+    // 5. Ensamblar
+    // Header
+    header.appendChild(logo);
+    header.appendChild(title);
+    title.appendChild(titleText);
+    
+    // Username
+    usernameWrapper.appendChild(usernameInput);
+    
+    // Email
+    emailWrapper.appendChild(emailInput);
+    
+    // Password
+    passwordWrapper.appendChild(passwordInput);
+    
+    // Checkbox y link
+    checkboxLabel.appendChild(checkboxText);
+    checkboxContainer.appendChild(checkbox);
+    checkboxContainer.appendChild(checkboxLabel);
+    checkboxCol.appendChild(checkboxContainer);
+    
+    resetLink.appendChild(resetText);
+    linkCol.appendChild(resetLink);
+    
+    optionsRow.appendChild(checkboxCol);
+    optionsRow.appendChild(linkCol);
+    
+    // Submit button
+    submitButton.appendChild(submitText);
+    
+    // Card body
+    cardBody.appendChild(header);
+    cardBody.appendChild(usernameWrapper);
+    cardBody.appendChild(emailWrapper);
+    cardBody.appendChild(passwordWrapper);
+    cardBody.appendChild(optionsRow);
+    cardBody.appendChild(submitButton);
+    
+    // Card footer
+    warningSpan.appendChild(warningText);
+    loginLink.appendChild(loginText);
+    footerP.appendChild(warningSpan);
+    footerP.appendChild(loginLink);
+    cardFooter.appendChild(footerP);
+    
+    // Card completo
+    card.appendChild(cardBody);
+    card.appendChild(cardFooter);
+    
+    // Contenedores externos
+    autoWrapper.appendChild(card);
+    container.appendChild(autoWrapper);
+
+    // 6. Retornar
+    return container;
+}
+
+// ========== WEB COMPONENT ==========
+class WCRegisterFormView extends HTMLElement {
+    constructor() {
+        super();
+        this.registerForm = createRegisterForm();
+        this._boundSubmitHandler = null;
+        this._submitButton = null;
+        this._inputs = {};
+        this._loadingIndicator = null;
+        this._errorMessage = null;
+    }
+
+    connectedCallback() {
+        this.appendChild(this.registerForm);
+        
+        this._inputs = {
+            username: this.querySelector("#register-username"),
+            email: this.querySelector("#register-email"),
+            password: this.querySelector("#register-password"),
+            remember: this.querySelector("#user-checkbox-register")
+        };
+        
+        this._submitButton = this.querySelector("#register-submit");
+        if (this._submitButton) {
+            this._boundSubmitHandler = this.handleRegisterSubmit.bind(this);
+            this._submitButton.addEventListener("click", this._boundSubmitHandler);
+        }
+        
+        const inputs = [this._inputs.username, this._inputs.email, this._inputs.password];
+        inputs.forEach(input => {
+            if (input) {
+                input.addEventListener("keypress", (e) => {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (this._submitButton) {
+                            this._submitButton.click();
+                        }
+                    }
+                });
+            }
+        });
+        
+        this._errorMessage = document.createElement("div");
+        this._errorMessage.className = "error-message w3-panel w3-red w3-round";
+        this._errorMessage.style.display = "none";
+        const cardBody = this.querySelector(".w3-padding-large");
+        if (cardBody && this._submitButton) {
+            cardBody.insertBefore(this._errorMessage, this._submitButton);
+        }
+        
+        this._loadingIndicator = document.createElement("span");
+        this._loadingIndicator.textContent = " Cargando...";
+        this._loadingIndicator.style.display = "none";
+        this._loadingIndicator.style.marginLeft = "10px";
+        if (this._submitButton) {
+            this._submitButton.appendChild(this._loadingIndicator);
+        }
+    }
+
+    disconnectedCallback() {
+        if (this._submitButton && this._boundSubmitHandler) {
+            this._submitButton.removeEventListener("click", this._boundSubmitHandler);
+            this._boundSubmitHandler = null;
+        }
+        this._inputs = {};
+        this._loadingIndicator = null;
+        this._errorMessage = null;
+    }
+
+    showError(message) {
+        if (this._errorMessage) {
+            this._errorMessage.textContent = message;
+            this._errorMessage.style.display = "block";
+        }
+    }
+
+    clearError() {
+        if (this._errorMessage) {
+            this._errorMessage.style.display = "none";
+            this._errorMessage.textContent = "";
+        }
+    }
+
+    setLoading(loading) {
+        if (this._submitButton) {
+            this._submitButton.disabled = loading;
+        }
+        if (this._loadingIndicator) {
+            this._loadingIndicator.style.display = loading ? "inline" : "none";
+        }
+    }
+
+    showSuccess(message) {
+        const successDiv = document.createElement("div");
+        successDiv.className = "w3-panel w3-green w3-round";
+        successDiv.textContent = message;
+        
+        const cardBody = this.querySelector(".w3-padding-large");
+        if (cardBody && this._submitButton) {
+            const existingMessages = cardBody.querySelectorAll(".w3-panel:not(.error-message)");
+            existingMessages.forEach(el => el.remove());
+            cardBody.insertBefore(successDiv, this._submitButton);
+            
+            setTimeout(() => {
+                successDiv.remove();
+            }, 3000);
+        }
+    }
+
+    async handleRegisterSubmit(event) {
+        if (!this._inputs.username || !this._inputs.username.value.trim()) {
+            this.showError("Por favor, ingresa tu nombre de usuario");
+            return;
+        }
+        
+        if (!this._inputs.email || !this._inputs.email.value.trim()) {
+            this.showError("Por favor, ingresa tu email");
+            return;
+        }
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(this._inputs.email.value.trim())) {
+            this.showError("Por favor, ingresa un email válido");
+            return;
+        }
+        
+        if (!this._inputs.password || !this._inputs.password.value) {
+            this.showError("Por favor, ingresa tu contraseña");
+            return;
+        }
+        
+        if (this._inputs.password.value.length < 6) {
+            this.showError("La contraseña debe tener al menos 6 caracteres");
+            return;
+        }
+        
+        this.clearError();
+        this.setLoading(true);
+        
+        try {
+            const userData = {
+                username: this._inputs.username.value.trim(),
+                email: this._inputs.email.value.trim(),
+                password: this._inputs.password.value,
+                remember: this._inputs.remember ? this._inputs.remember.checked : false
+            };
+            
+            const result = await RPCWebAPIFetch("/api/register", userData);
+            
+            console.log("Registro exitoso:", result);
+            
+            this.showSuccess("¡Registro completado con éxito!");
+            
+            setTimeout(() => {
+                window.location.href = "WCLoginFormView.html";
+            }, 2000);
+            
+        } catch (error) {
+            console.error("Error en registro:", error);
+            const errorMessage = handleRPCError(error);
+            this.showError(errorMessage);
+        } finally {
+            this.setLoading(false);
+        }
+    }
+}
+
+customElements.define("wc-register-form-view", WCRegisterFormView);
+</script>
+</html>
