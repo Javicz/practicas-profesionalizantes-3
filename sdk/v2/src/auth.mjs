@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { getUserByUsername, userHasPermission } from './model.mjs';
 
-// ============ CIFRADO SHA256 ============
+// ============ SHA256 ============
 export function hashSHA256(text) {
     return createHash('sha256')
         .update(text)

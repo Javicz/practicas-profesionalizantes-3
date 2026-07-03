@@ -103,7 +103,7 @@ export function removeAccess(db, groupId, endpointId) {
     );
 }
 
-// ============ PERMISOS DEL USUARIO ============
+// ============ PERMISOS ============
 export function getUserPermissions(db, username) {
     var sql = `
         SELECT DISTINCT e.path

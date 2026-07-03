@@ -1,7 +1,6 @@
 import sqlite3 from 'sqlite3';
 import { resolve } from 'node:path';
 
-// ============ SOLO PROVEE CONEXIÓN ============
 export function connectDB(path) {
     var dbPath, db;
     
@@ -14,7 +13,6 @@ export function connectDB(path) {
     return db;
 }
 
-// ============ HELPERS PARA CONSULTAS ============
 export function runQuery(db, sql, params) {
     params = params || [];
     return new Promise(function(resolve, reject) {

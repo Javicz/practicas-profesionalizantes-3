@@ -3,24 +3,28 @@ import {
     createGroup, getAllGroups, deleteGroup, updateGroup,
     createEndpoint, getAllEndpoints, deleteEndpoint,
     addMember, removeMember,
-    addAccess, removeAccess,
-    getUserPermissions
+    addAccess, removeAccess
 } from './model.mjs';
 import { authenticate, logout, isSessionActive, authorize } from './auth.mjs';
 import { readFileSync } from 'node:fs';
 import { URL } from 'node:url';
 
+// ============ HELPERS ============
+function sendJSON(response, code, data) {
+    response.writeHead(code, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify(data));
+}
+
 // ============ HANDLER: PÁGINA PRINCIPAL ============
 export function defaultHandler(config) {
     return function(request, response) {
-        var html;
         try {
-            html = readFileSync(config.server.default_path, 'utf-8');
+            var html = readFileSync(config.server.default_path, 'utf-8');
             response.writeHead(200, { 'Content-Type': 'text/html' });
             response.end(html);
         } catch (error) {
             response.writeHead(500);
-            response.end('Error interno: No se pudo cargar la vista principal.');
+            response.end('Error interno');
         }
     };
 }
@@ -28,32 +32,26 @@ export function defaultHandler(config) {
 // ============ HANDLER: LOGIN ============
 export function loginHandler(db) {
     return function(request, response) {
-        var body, params, username, password;
+        var body = '';
         
         if (request.method !== 'POST') {
-            response.writeHead(405, { 'Content-Type': 'application/json' });
-            response.end(JSON.stringify({ error: 'Método no permitido. Usa POST.' }));
+            sendJSON(response, 405, { error: 'Método no permitido. Usa POST.' });
             return;
         }
 
-        body = '';
         request.on('data', function(chunk) { body += chunk; });
         
         request.on('end', function() {
-            params = new URLSearchParams(body);
-            username = params.get('username');
-            password = params.get('password');
+            var params = new URLSearchParams(body);
+            var username = params.get('username');
+            var password = params.get('password');
 
             authenticate(db, username, password)
                 .then(function(result) {
-                    response.writeHead(result.success ? 200 : 401, {
-                        'Content-Type': 'application/json'
-                    });
-                    response.end(JSON.stringify(result));
+                    sendJSON(response, result.success ? 200 : 401, result);
                 })
                 .catch(function(err) {
-                    response.writeHead(500, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: false, message: err.message }));
+                    sendJSON(response, 500, { success: false, message: err.message });
                 });
         });
     };
@@ -62,27 +60,20 @@ export function loginHandler(db) {
 // ============ HANDLER: LOGOUT ============
 export function logoutHandler() {
     return function(request, response) {
-        var body, params, username, result;
+        var body = '';
         
         if (request.method !== 'POST') {
-            response.writeHead(405, { 'Content-Type': 'application/json' });
-            response.end(JSON.stringify({ error: 'Método no permitido. Usa POST.' }));
+            sendJSON(response, 405, { error: 'Método no permitido. Usa POST.' });
             return;
         }
 
-        body = '';
         request.on('data', function(chunk) { body += chunk; });
         
         request.on('end', function() {
-            params = new URLSearchParams(body);
-            username = params.get('username');
-
-            result = logout(username);
-
-            response.writeHead(result.success ? 200 : 400, {
-                'Content-Type': 'application/json'
-            });
-            response.end(JSON.stringify(result));
+            var params = new URLSearchParams(body);
+            var username = params.get('username');
+            var result = logout(username);
+            sendJSON(response, result.success ? 200 : 400, result);
         });
     };
 }
@@ -90,46 +81,31 @@ export function logoutHandler() {
 // ============ HANDLER: REGISTRO ============
 export function registerHandler(db) {
     return function(request, response) {
-        var body, params, username, password;
+        var body = '';
         
         if (request.method !== 'POST') {
-            response.writeHead(405, { 'Content-Type': 'application/json' });
-            response.end(JSON.stringify({ error: 'Método no permitido. Usa POST.' }));
+            sendJSON(response, 405, { error: 'Método no permitido. Usa POST.' });
             return;
         }
 
-        body = '';
         request.on('data', function(chunk) { body += chunk; });
         
         request.on('end', function() {
-            params = new URLSearchParams(body);
-            username = params.get('username');
-            password = params.get('password');
+            var params = new URLSearchParams(body);
+            var username = params.get('username');
+            var password = params.get('password');
 
             if (!username || !password) {
-                response.writeHead(400, { 'Content-Type': 'application/json' });
-                response.end(JSON.stringify({
-                    success: false,
-                    error: 'Usuario y contraseña son requeridos'
-                }));
+                sendJSON(response, 400, { success: false, error: 'Usuario y contraseña son requeridos' });
                 return;
             }
 
             createUser(db, username, password)
                 .then(function(user) {
-                    response.writeHead(200, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({
-                        success: true,
-                        user: user,
-                        message: 'Usuario creado con contraseña cifrada SHA256'
-                    }));
+                    sendJSON(response, 200, { success: true, user: user, message: 'Usuario creado con SHA256' });
                 })
                 .catch(function(err) {
-                    response.writeHead(500, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({
-                        success: false,
-                        error: err.message
-                    }));
+                    sendJSON(response, 500, { success: false, error: err.message });
                 });
         });
     };
@@ -140,8 +116,7 @@ export function listUsersHandler(db) {
     return function(request, response) {
         getAllUsers(db)
             .then(function(users) {
-                var html = '<h2>Usuarios</h2>';
-                html += '<table border="1"><tr><th>ID</th><th>Username</th><th>Creado</th></tr>';
+                var html = '<h2>Usuarios</h2><table border="1"><tr><th>ID</th><th>Username</th><th>Creado</th></tr>';
                 users.forEach(function(u) {
                     html += '<tr><td>' + u.id + '</td><td>' + u.username + '</td><td>' + u.created_at + '</td></tr>';
                 });
@@ -161,8 +136,7 @@ export function listGroupsHandler(db) {
     return function(request, response) {
         getAllGroups(db)
             .then(function(groups) {
-                var html = '<h2>Grupos</h2>';
-                html += '<table border="1"><tr><th>ID</th><th>Nombre</th><th>Creado</th></tr>';
+                var html = '<h2>Grupos</h2><table border="1"><tr><th>ID</th><th>Nombre</th><th>Creado</th></tr>';
                 groups.forEach(function(g) {
                     html += '<tr><td>' + g.id + '</td><td>' + g.name + '</td><td>' + g.created_at + '</td></tr>';
                 });
@@ -182,8 +156,7 @@ export function listEndpointsHandler(db) {
     return function(request, response) {
         getAllEndpoints(db)
             .then(function(endpoints) {
-                var html = '<h2>Endpoints</h2>';
-                html += '<table border="1"><tr><th>ID</th><th>Path</th></tr>';
+                var html = '<h2>Endpoints</h2><table border="1"><tr><th>ID</th><th>Path</th></tr>';
                 endpoints.forEach(function(e) {
                     html += '<tr><td>' + e.id + '</td><td>' + e.path + '</td></tr>';
                 });
@@ -201,35 +174,30 @@ export function listEndpointsHandler(db) {
 // ============ HANDLER: CREAR GRUPO ============
 export function createGroupHandler(db) {
     return function(request, response) {
-        var body, params, name;
+        var body = '';
         
         if (request.method !== 'POST') {
-            response.writeHead(405);
-            response.end('Método no permitido');
+            sendJSON(response, 405, { error: 'Método no permitido' });
             return;
         }
 
-        body = '';
         request.on('data', function(chunk) { body += chunk; });
         
         request.on('end', function() {
-            params = new URLSearchParams(body);
-            name = params.get('name');
+            var params = new URLSearchParams(body);
+            var name = params.get('name');
             
             if (!name) {
-                response.writeHead(400, { 'Content-Type': 'application/json' });
-                response.end(JSON.stringify({ success: false, error: 'Nombre del grupo requerido' }));
+                sendJSON(response, 400, { success: false, error: 'Nombre del grupo requerido' });
                 return;
             }
             
             createGroup(db, name)
                 .then(function(group) {
-                    response.writeHead(200, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: true, data: group }));
+                    sendJSON(response, 200, { success: true, data: group });
                 })
                 .catch(function(err) {
-                    response.writeHead(500, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: false, message: err.message }));
+                    sendJSON(response, 500, { success: false, message: err.message });
                 });
         });
     };
@@ -238,29 +206,30 @@ export function createGroupHandler(db) {
 // ============ HANDLER: ELIMINAR GRUPO ============
 export function deleteGroupHandler(db) {
     return function(request, response) {
-        var body, params, id;
+        var body = '';
         
         if (request.method !== 'POST') {
-            response.writeHead(405);
-            response.end('Método no permitido');
+            sendJSON(response, 405, { error: 'Método no permitido' });
             return;
         }
 
-        body = '';
         request.on('data', function(chunk) { body += chunk; });
         
         request.on('end', function() {
-            params = new URLSearchParams(body);
-            id = parseInt(params.get('id'));
+            var params = new URLSearchParams(body);
+            var id = parseInt(params.get('id'));
+            
+            if (isNaN(id)) {
+                sendJSON(response, 400, { success: false, error: 'ID inválido' });
+                return;
+            }
             
             deleteGroup(db, id)
                 .then(function() {
-                    response.writeHead(200, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: true, message: 'Grupo eliminado' }));
+                    sendJSON(response, 200, { success: true, message: 'Grupo eliminado' });
                 })
                 .catch(function(err) {
-                    response.writeHead(500, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: false, message: err.message }));
+                    sendJSON(response, 500, { success: false, message: err.message });
                 });
         });
     };
@@ -269,36 +238,31 @@ export function deleteGroupHandler(db) {
 // ============ HANDLER: ACTUALIZAR GRUPO ============
 export function updateGroupHandler(db) {
     return function(request, response) {
-        var body, params, id, name;
+        var body = '';
         
         if (request.method !== 'POST') {
-            response.writeHead(405);
-            response.end('Método no permitido');
+            sendJSON(response, 405, { error: 'Método no permitido' });
             return;
         }
 
-        body = '';
         request.on('data', function(chunk) { body += chunk; });
         
         request.on('end', function() {
-            params = new URLSearchParams(body);
-            id = parseInt(params.get('id'));
-            name = params.get('name');
+            var params = new URLSearchParams(body);
+            var id = parseInt(params.get('id'));
+            var name = params.get('name');
             
-            if (!name) {
-                response.writeHead(400, { 'Content-Type': 'application/json' });
-                response.end(JSON.stringify({ success: false, error: 'Nombre requerido' }));
+            if (isNaN(id) || !name) {
+                sendJSON(response, 400, { success: false, error: 'ID y nombre requeridos' });
                 return;
             }
             
             updateGroup(db, id, name)
                 .then(function() {
-                    response.writeHead(200, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: true, message: 'Grupo actualizado' }));
+                    sendJSON(response, 200, { success: true, message: 'Grupo actualizado' });
                 })
                 .catch(function(err) {
-                    response.writeHead(500, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: false, message: err.message }));
+                    sendJSON(response, 500, { success: false, message: err.message });
                 });
         });
     };
@@ -307,30 +271,31 @@ export function updateGroupHandler(db) {
 // ============ HANDLER: ASIGNAR USUARIO A GRUPO ============
 export function assignUserToGroupHandler(db) {
     return function(request, response) {
-        var body, params, userId, groupId;
+        var body = '';
         
         if (request.method !== 'POST') {
-            response.writeHead(405);
-            response.end('Método no permitido');
+            sendJSON(response, 405, { error: 'Método no permitido' });
             return;
         }
 
-        body = '';
         request.on('data', function(chunk) { body += chunk; });
         
         request.on('end', function() {
-            params = new URLSearchParams(body);
-            userId = parseInt(params.get('user_id'));
-            groupId = parseInt(params.get('group_id'));
+            var params = new URLSearchParams(body);
+            var userId = parseInt(params.get('user_id'));
+            var groupId = parseInt(params.get('group_id'));
+            
+            if (isNaN(userId) || isNaN(groupId)) {
+                sendJSON(response, 400, { success: false, error: 'IDs inválidos' });
+                return;
+            }
             
             addMember(db, userId, groupId)
                 .then(function() {
-                    response.writeHead(200, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: true, message: 'Usuario asignado al grupo' }));
+                    sendJSON(response, 200, { success: true, message: 'Usuario asignado al grupo' });
                 })
                 .catch(function(err) {
-                    response.writeHead(500, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: false, message: err.message }));
+                    sendJSON(response, 500, { success: false, message: err.message });
                 });
         });
     };
@@ -339,35 +304,30 @@ export function assignUserToGroupHandler(db) {
 // ============ HANDLER: CREAR ENDPOINT ============
 export function createEndpointHandler(db) {
     return function(request, response) {
-        var body, params, path;
+        var body = '';
         
         if (request.method !== 'POST') {
-            response.writeHead(405);
-            response.end('Método no permitido');
+            sendJSON(response, 405, { error: 'Método no permitido' });
             return;
         }
 
-        body = '';
         request.on('data', function(chunk) { body += chunk; });
         
         request.on('end', function() {
-            params = new URLSearchParams(body);
-            path = params.get('path');
+            var params = new URLSearchParams(body);
+            var path = params.get('path');
             
             if (!path) {
-                response.writeHead(400, { 'Content-Type': 'application/json' });
-                response.end(JSON.stringify({ success: false, error: 'Path requerido' }));
+                sendJSON(response, 400, { success: false, error: 'Path requerido' });
                 return;
             }
             
             createEndpoint(db, path)
                 .then(function(endpoint) {
-                    response.writeHead(200, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: true, data: endpoint }));
+                    sendJSON(response, 200, { success: true, data: endpoint });
                 })
                 .catch(function(err) {
-                    response.writeHead(500, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: false, message: err.message }));
+                    sendJSON(response, 500, { success: false, message: err.message });
                 });
         });
     };
@@ -376,29 +336,30 @@ export function createEndpointHandler(db) {
 // ============ HANDLER: ELIMINAR ENDPOINT ============
 export function deleteEndpointHandler(db) {
     return function(request, response) {
-        var body, params, endpointId;
+        var body = '';
         
         if (request.method !== 'POST') {
-            response.writeHead(405);
-            response.end('Método no permitido');
+            sendJSON(response, 405, { error: 'Método no permitido' });
             return;
         }
 
-        body = '';
         request.on('data', function(chunk) { body += chunk; });
         
         request.on('end', function() {
-            params = new URLSearchParams(body);
-            endpointId = parseInt(params.get('endpoint_id'));
+            var params = new URLSearchParams(body);
+            var endpointId = parseInt(params.get('endpoint_id'));
+            
+            if (isNaN(endpointId)) {
+                sendJSON(response, 400, { success: false, error: 'ID inválido' });
+                return;
+            }
             
             deleteEndpoint(db, endpointId)
                 .then(function() {
-                    response.writeHead(200, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: true, message: 'Endpoint eliminado' }));
+                    sendJSON(response, 200, { success: true, message: 'Endpoint eliminado' });
                 })
                 .catch(function(err) {
-                    response.writeHead(500, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: false, message: err.message }));
+                    sendJSON(response, 500, { success: false, message: err.message });
                 });
         });
     };
@@ -407,30 +368,31 @@ export function deleteEndpointHandler(db) {
 // ============ HANDLER: ASIGNAR PERMISO ============
 export function assignPermissionHandler(db) {
     return function(request, response) {
-        var body, params, groupId, endpointId;
+        var body = '';
         
         if (request.method !== 'POST') {
-            response.writeHead(405);
-            response.end('Método no permitido');
+            sendJSON(response, 405, { error: 'Método no permitido' });
             return;
         }
 
-        body = '';
         request.on('data', function(chunk) { body += chunk; });
         
         request.on('end', function() {
-            params = new URLSearchParams(body);
-            groupId = parseInt(params.get('group_id'));
-            endpointId = parseInt(params.get('endpoint_id'));
+            var params = new URLSearchParams(body);
+            var groupId = parseInt(params.get('group_id'));
+            var endpointId = parseInt(params.get('endpoint_id'));
+            
+            if (isNaN(groupId) || isNaN(endpointId)) {
+                sendJSON(response, 400, { success: false, error: 'IDs inválidos' });
+                return;
+            }
             
             addAccess(db, groupId, endpointId)
                 .then(function() {
-                    response.writeHead(200, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: true, message: 'Permiso asignado' }));
+                    sendJSON(response, 200, { success: true, message: 'Permiso asignado' });
                 })
                 .catch(function(err) {
-                    response.writeHead(500, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: false, message: err.message }));
+                    sendJSON(response, 500, { success: false, message: err.message });
                 });
         });
     };
@@ -439,91 +401,63 @@ export function assignPermissionHandler(db) {
 // ============ HANDLER: QUITAR PERMISO ============
 export function removePermissionHandler(db) {
     return function(request, response) {
-        var body, params, groupId, endpointId;
+        var body = '';
         
         if (request.method !== 'POST') {
-            response.writeHead(405);
-            response.end('Método no permitido');
+            sendJSON(response, 405, { error: 'Método no permitido' });
             return;
         }
 
-        body = '';
         request.on('data', function(chunk) { body += chunk; });
         
         request.on('end', function() {
-            params = new URLSearchParams(body);
-            groupId = parseInt(params.get('group_id'));
-            endpointId = parseInt(params.get('endpoint_id'));
+            var params = new URLSearchParams(body);
+            var groupId = parseInt(params.get('group_id'));
+            var endpointId = parseInt(params.get('endpoint_id'));
+            
+            if (isNaN(groupId) || isNaN(endpointId)) {
+                sendJSON(response, 400, { success: false, error: 'IDs inválidos' });
+                return;
+            }
             
             removeAccess(db, groupId, endpointId)
                 .then(function() {
-                    response.writeHead(200, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: true, message: 'Permiso removido' }));
+                    sendJSON(response, 200, { success: true, message: 'Permiso removido' });
                 })
                 .catch(function(err) {
-                    response.writeHead(500, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: false, message: err.message }));
+                    sendJSON(response, 500, { success: false, message: err.message });
                 });
         });
-    };
-}
-
-// ============ HANDLER: VER PERMISOS DE USUARIO ============
-export function getUserPermissionsHandler(db) {
-    return function(request, response) {
-        var url, username;
-        
-        url = new URL(request.url, 'http://localhost');
-        username = url.searchParams.get('username');
-        
-        if (!username) {
-            response.writeHead(400, { 'Content-Type': 'application/json' });
-            response.end(JSON.stringify({ success: false, error: 'Username requerido' }));
-            return;
-        }
-        
-        getUserPermissions(db, username)
-            .then(function(permissions) {
-                response.writeHead(200, { 'Content-Type': 'application/json' });
-                response.end(JSON.stringify({ 
-                    success: true, 
-                    username: username,
-                    permissions: permissions 
-                }));
-            })
-            .catch(function(err) {
-                response.writeHead(500, { 'Content-Type': 'application/json' });
-                response.end(JSON.stringify({ success: false, message: err.message }));
-            });
     };
 }
 
 // ============ HANDLER: ELIMINAR USUARIO ============
 export function deleteUserHandler(db) {
     return function(request, response) {
-        var body, params, userId;
+        var body = '';
         
         if (request.method !== 'POST') {
-            response.writeHead(405);
-            response.end('Método no permitido');
+            sendJSON(response, 405, { error: 'Método no permitido' });
             return;
         }
 
-        body = '';
         request.on('data', function(chunk) { body += chunk; });
         
         request.on('end', function() {
-            params = new URLSearchParams(body);
-            userId = parseInt(params.get('user_id'));
+            var params = new URLSearchParams(body);
+            var userId = parseInt(params.get('user_id'));
+            
+            if (isNaN(userId)) {
+                sendJSON(response, 400, { success: false, error: 'ID inválido' });
+                return;
+            }
             
             deleteUser(db, userId)
                 .then(function() {
-                    response.writeHead(200, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: true, message: 'Usuario eliminado' }));
+                    sendJSON(response, 200, { success: true, message: 'Usuario eliminado' });
                 })
                 .catch(function(err) {
-                    response.writeHead(500, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({ success: false, message: err.message }));
+                    sendJSON(response, 500, { success: false, message: err.message });
                 });
         });
     };
@@ -532,54 +466,41 @@ export function deleteUserHandler(db) {
 // ============ HANDLER: ENDPOINTS PROTEGIDOS ============
 export function createProtectedHandler(db, endpointPath) {
     return function(request, response) {
-        var url, username;
-        
-        url = new URL(request.url, 'http://localhost');
-        username = url.searchParams.get('username');
+        var url = new URL(request.url, 'http://localhost');
+        var username = url.searchParams.get('username');
 
         if (!username) {
-            response.writeHead(401, { 'Content-Type': 'application/json' });
-            response.end(JSON.stringify({
-                success: false,
-                message: 'No autenticado. Envía el parámetro username'
-            }));
+            sendJSON(response, 401, { success: false, message: 'No autenticado. Envía el parámetro username' });
             return;
         }
 
         if (!isSessionActive(username)) {
-            response.writeHead(401, { 'Content-Type': 'application/json' });
-            response.end(JSON.stringify({
-                success: false,
-                message: 'Sesión no activa o expirada'
-            }));
+            sendJSON(response, 401, { success: false, message: 'Sesión no activa o expirada' });
             return;
         }
 
         authorize(db, username, endpointPath)
             .then(function(hasPermission) {
                 if (!hasPermission) {
-                    response.writeHead(403, { 'Content-Type': 'application/json' });
-                    response.end(JSON.stringify({
+                    sendJSON(response, 403, {
                         success: false,
                         message: 'No tienes permisos para acceder a ' + endpointPath,
                         endpoint: endpointPath,
                         user: username
-                    }));
+                    });
                     return;
                 }
 
-                response.writeHead(200, { 'Content-Type': 'application/json' });
-                response.end(JSON.stringify({
+                sendJSON(response, 200, {
                     success: true,
                     message: 'Endpoint ' + endpointPath + ' ejecutado correctamente',
                     endpoint: endpointPath,
                     user: username,
                     timestamp: new Date().toISOString()
-                }));
+                });
             })
             .catch(function(err) {
-                response.writeHead(500, { 'Content-Type': 'application/json' });
-                response.end(JSON.stringify({ success: false, message: err.message }));
+                sendJSON(response, 500, { success: false, message: err.message });
             });
     };
 }
