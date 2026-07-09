@@ -291,14 +291,13 @@ class WCLoginFormView extends HTMLElement {
             this._submitButton.appendChild(this._loadingIndicator);
         }
 
-        // 5. Vincular métodos (para eventos)
+        // 5. Vincular métodos 
         this._handleSubmit = this._handleSubmit.bind(this);
         this._handleKeyPress = this._handleKeyPress.bind(this);
     }
 
     // ---------- CONNECTED CALLBACK ----------
     connectedCallback() {
-        // Solo asignar manejadores de eventos
         if (this._submitButton) {
             this._submitButton.addEventListener("click", this._handleSubmit);
         }
@@ -314,7 +313,6 @@ class WCLoginFormView extends HTMLElement {
 
     // ---------- DISCONNECTED CALLBACK ----------
     disconnectedCallback() {
-        // Remover todos los eventos
         if (this._submitButton) {
             this._submitButton.removeEventListener("click", this._handleSubmit);
         }
