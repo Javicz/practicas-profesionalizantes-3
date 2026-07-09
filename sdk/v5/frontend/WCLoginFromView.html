@@ -47,7 +47,8 @@ class ProgramError extends Error {
 }
 
 // ========== FUNCIÓN RPCWebAPIFetch ==========
-async function RPCWebAPIFetch(path, body = {}) {
+async function RPCWebAPIFetch(path, body) {
+    if (body === undefined) body = {};
     const API = "http://127.0.0.1:3000";
     
     const headers = {
@@ -94,7 +95,7 @@ async function RPCWebAPIFetch(path, body = {}) {
             error instanceof ProgramError) {
             throw error;
         }
-        throw new Error(`Error de red: ${error.message}`);
+        throw new Error("Error de red: " + error.message);
     }
 }
 
@@ -144,37 +145,31 @@ function createButton(iconClasses, buttonClasses) {
 
 // ========== CREATE LOGIN FORM ==========
 function createLoginForm() {
-    // 1. Crear elementos
     var container = document.createElement("div");
     var autoWrapper = document.createElement("div");
     var card = document.createElement("div");
     var cardBody = document.createElement("div");
     
-    // Header del form
     var header = document.createElement("div");
     var logo = document.createElement("img");
     var title = document.createElement("p");
     var titleText = document.createTextNode("Iniciar sesion");
     
-    // Campos
     var usernameWrapper = document.createElement("div");
     var usernameInput = document.createElement("input");
     
     var passwordWrapper = document.createElement("div");
     var passwordInput = document.createElement("input");
     
-    // Checkbox
     var checkboxWrapper = document.createElement("div");
     var checkboxContainer = document.createElement("div");
     var checkbox = document.createElement("input");
     var checkboxLabel = document.createElement("label");
     var checkboxText = document.createTextNode(" Aceptar terminos y condiciones");
     
-    // Botón principal
     var submitButton = document.createElement("button");
     var submitText = document.createTextNode("Sign In");
     
-    // Footer del card
     var cardFooter = document.createElement("div");
     var footerP = document.createElement("p");
     var warningSpan = document.createElement("span");
@@ -182,35 +177,26 @@ function createLoginForm() {
     var registerLink = document.createElement("a");
     var registerText = document.createTextNode(" Sign Up here");
 
-    // 2. Asignar clases
+    // Clases y estilos
     container.classList.add("w3-padding-32");
     autoWrapper.classList.add("w3-auto");
+    autoWrapper.style.width = "380px";
     card.classList.add("w3-white", "w3-round", "w3-margin-bottom", "w3-border");
     cardBody.classList.add("w3-padding-large");
-    
     header.classList.add("w3-center", "w3-padding-16");
     logo.classList.add("w3-image");
-    
     usernameWrapper.classList.add("w3-margin-bottom");
     usernameInput.classList.add("w3-input", "w3-round", "w3-border");
-    
     passwordWrapper.classList.add("w3-margin-bottom");
     passwordInput.classList.add("w3-input", "w3-round", "w3-border");
-    
     checkboxWrapper.classList.add("w3-margin-bottom");
     checkboxContainer.classList.add("icheck-material-white");
     checkbox.classList.add("w3-check");
-    
     submitButton.classList.add("w3-button", "w3-round", "w3-margin-bottom", "w3-primary", "w3-block");
-    
     cardFooter.classList.add("w3-center", "w3-border-top");
     footerP.classList.add("w3-margin");
     warningSpan.classList.add("w3-text-warning");
 
-    // 3. Asignar estilos
-    autoWrapper.style.width = "380px";
-
-    // 4. Asignar atributos
     logo.src = "./assets/admin-logo.png";
     logo.alt = "w3mix";
     
@@ -233,53 +219,40 @@ function createLoginForm() {
     
     submitButton.type = "button";
     submitButton.id = "login-submit";
-
     registerLink.href = "WCRegisterFormView.html";
 
-    // 5. Ensamblar
-    // Header
+    // Ensamblar
     header.appendChild(logo);
     header.appendChild(title);
     title.appendChild(titleText);
     
-    // Username
     usernameWrapper.appendChild(usernameInput);
-    
-    // Password
     passwordWrapper.appendChild(passwordInput);
     
-    // Checkbox
     checkboxLabel.appendChild(checkboxText);
     checkboxContainer.appendChild(checkbox);
     checkboxContainer.appendChild(checkboxLabel);
     checkboxWrapper.appendChild(checkboxContainer);
     
-    // Submit button
     submitButton.appendChild(submitText);
     
-    // Card body
     cardBody.appendChild(header);
     cardBody.appendChild(usernameWrapper);
     cardBody.appendChild(passwordWrapper);
     cardBody.appendChild(checkboxWrapper);
     cardBody.appendChild(submitButton);
     
-    // Card footer
     warningSpan.appendChild(warningText);
     registerLink.appendChild(registerText);
     footerP.appendChild(warningSpan);
     footerP.appendChild(registerLink);
     cardFooter.appendChild(footerP);
     
-    // Card completo
     card.appendChild(cardBody);
     card.appendChild(cardFooter);
-    
-    // Contenedores externos
     autoWrapper.appendChild(card);
     container.appendChild(autoWrapper);
 
-    // 6. Retornar
     return container;
 }
 
@@ -287,51 +260,29 @@ function createLoginForm() {
 class WCLoginFormView extends HTMLElement {
     constructor() {
         super();
-        this.loginForm = createLoginForm();
-        this._boundSubmitHandler = null;
-        this._submitButton = null;
-        this._inputs = {};
-        this._loadingIndicator = null;
-        this._errorMessage = null;
-    }
 
-    connectedCallback() {
+        // 1. Crear el formulario y agregarlo al componente
+        this.loginForm = createLoginForm();
         this.appendChild(this.loginForm);
-        
+
+        // 2. Referencias a los inputs y botón
         this._inputs = {
             username: this.querySelector("#login-username"),
             password: this.querySelector("#login-password"),
             remember: this.querySelector("#user-checkbox-login")
         };
-        
         this._submitButton = this.querySelector("#login-submit");
-        if (this._submitButton) {
-            this._boundSubmitHandler = this.handleLoginSubmit.bind(this);
-            this._submitButton.addEventListener("click", this._boundSubmitHandler);
-        }
-        
-        const inputs = [this._inputs.username, this._inputs.password];
-        inputs.forEach(input => {
-            if (input) {
-                input.addEventListener("keypress", (e) => {
-                    if (e.key === "Enter") {
-                        e.preventDefault();
-                        if (this._submitButton) {
-                            this._submitButton.click();
-                        }
-                    }
-                });
-            }
-        });
-        
+
+        // 3. Crear mensaje de error 
         this._errorMessage = document.createElement("div");
         this._errorMessage.className = "error-message w3-panel w3-red w3-round";
         this._errorMessage.style.display = "none";
-        const cardBody = this.querySelector(".w3-padding-large");
+        var cardBody = this.querySelector(".w3-padding-large");
         if (cardBody && this._submitButton) {
             cardBody.insertBefore(this._errorMessage, this._submitButton);
         }
-        
+
+        // 4. Crear indicador de carga 
         this._loadingIndicator = document.createElement("span");
         this._loadingIndicator.textContent = " Cargando...";
         this._loadingIndicator.style.display = "none";
@@ -339,18 +290,45 @@ class WCLoginFormView extends HTMLElement {
         if (this._submitButton) {
             this._submitButton.appendChild(this._loadingIndicator);
         }
+
+        // 5. Vincular métodos (para eventos)
+        this._handleSubmit = this._handleSubmit.bind(this);
+        this._handleKeyPress = this._handleKeyPress.bind(this);
     }
 
-    disconnectedCallback() {
-        if (this._submitButton && this._boundSubmitHandler) {
-            this._submitButton.removeEventListener("click", this._boundSubmitHandler);
-            this._boundSubmitHandler = null;
+    // ---------- CONNECTED CALLBACK ----------
+    connectedCallback() {
+        // Solo asignar manejadores de eventos
+        if (this._submitButton) {
+            this._submitButton.addEventListener("click", this._handleSubmit);
         }
-        this._inputs = {};
-        this._loadingIndicator = null;
-        this._errorMessage = null;
+
+        var inputs = [this._inputs.username, this._inputs.password];
+        for (var i = 0; i < inputs.length; i++) {
+            var input = inputs[i];
+            if (input) {
+                input.addEventListener("keypress", this._handleKeyPress);
+            }
+        }
     }
 
+    // ---------- DISCONNECTED CALLBACK ----------
+    disconnectedCallback() {
+        // Remover todos los eventos
+        if (this._submitButton) {
+            this._submitButton.removeEventListener("click", this._handleSubmit);
+        }
+
+        var inputs = [this._inputs.username, this._inputs.password];
+        for (var i = 0; i < inputs.length; i++) {
+            var input = inputs[i];
+            if (input) {
+                input.removeEventListener("keypress", this._handleKeyPress);
+            }
+        }
+    }
+
+    // ---------- MÉTODOS AUXILIARES ----------
     showError(message) {
         if (this._errorMessage) {
             this._errorMessage.textContent = message;
@@ -375,23 +353,27 @@ class WCLoginFormView extends HTMLElement {
     }
 
     showSuccess(message) {
-        const successDiv = document.createElement("div");
+        var successDiv = document.createElement("div");
         successDiv.className = "w3-panel w3-green w3-round";
         successDiv.textContent = message;
         
-        const cardBody = this.querySelector(".w3-padding-large");
+        var cardBody = this.querySelector(".w3-padding-large");
         if (cardBody && this._submitButton) {
-            const existingMessages = cardBody.querySelectorAll(".w3-panel:not(.error-message)");
-            existingMessages.forEach(el => el.remove());
+            var existingMessages = cardBody.querySelectorAll(".w3-panel:not(.error-message)");
+            for (var i = 0; i < existingMessages.length; i++) {
+                existingMessages[i].remove();
+            }
             cardBody.insertBefore(successDiv, this._submitButton);
             
-            setTimeout(() => {
+            var self = this;
+            setTimeout(function() {
                 successDiv.remove();
             }, 3000);
         }
     }
 
-    async handleLoginSubmit(event) {
+    // ---------- MANEJADOR DEL SUBMIT ----------
+    _handleSubmit(event) {
         if (!this._inputs.username || !this._inputs.username.value.trim()) {
             this.showError("Por favor, ingresa tu nombre de usuario");
             return;
@@ -405,39 +387,51 @@ class WCLoginFormView extends HTMLElement {
         this.clearError();
         this.setLoading(true);
         
-        try {
-            const loginData = {
-                username: this._inputs.username.value.trim(),
-                password: this._inputs.password.value,
-                remember: this._inputs.remember ? this._inputs.remember.checked : false
-            };
-            
-            const result = await RPCWebAPIFetch("/login", loginData);
-            
-            console.log("Login exitoso:", result);
-            
-            if (result.status && result.result) {
-                localStorage.setItem("userId", result.result.id);
-                localStorage.setItem("apiKey", result.result.apiKey);
-                localStorage.setItem("username", result.result.username);
+        var self = this;
+        var loginData = {
+            username: this._inputs.username.value.trim(),
+            password: this._inputs.password.value,
+            remember: this._inputs.remember ? this._inputs.remember.checked : false
+        };
+
+        RPCWebAPIFetch("/login", loginData)
+            .then(function(result) {
+                console.log("Login exitoso:", result);
+                
+                if (result.status && result.result) {
+                    localStorage.setItem("userId", result.result.id);
+                    localStorage.setItem("apiKey", result.result.apiKey);
+                    localStorage.setItem("username", result.result.username);
+                }
+                
+                self.showSuccess("¡Inicio de sesión exitoso!");
+                
+                setTimeout(function() {
+                    window.location.href = "dashboard.html";
+                }, 1500);
+            })
+            .catch(function(error) {
+                console.error("Error en login:", error);
+                var errorMessage = handleRPCError(error);
+                self.showError(errorMessage);
+            })
+            .finally(function() {
+                self.setLoading(false);
+            });
+    }
+
+    // ---------- MANEJADOR DE TECLA ENTER ----------
+    _handleKeyPress(event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            if (this._submitButton) {
+                this._submitButton.click();
             }
-            
-            this.showSuccess("¡Inicio de sesión exitoso!");
-            
-            setTimeout(() => {
-                window.location.href = "dashboard.html";
-            }, 1500);
-            
-        } catch (error) {
-            console.error("Error en login:", error);
-            const errorMessage = handleRPCError(error);
-            this.showError(errorMessage);
-        } finally {
-            this.setLoading(false);
         }
     }
 }
 
+// ========== REGISTRAR EL WEB COMPONENT ==========
 customElements.define("wc-login-form-view", WCLoginFormView);
 </script>
 </html>
