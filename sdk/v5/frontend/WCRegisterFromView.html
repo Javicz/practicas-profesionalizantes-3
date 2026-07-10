@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Test Register</title>
+    <!-- Estos estilos ya no afectan al componente, pero se mantienen por si hay otros elementos en la página -->
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
@@ -47,7 +48,8 @@ class ProgramError extends Error {
 }
 
 // ========== FUNCIÓN RPCWebAPIFetch ==========
-async function RPCWebAPIFetch(path, body = {}) {
+async function RPCWebAPIFetch(path, body) {
+    if (body === undefined) body = {};
     const API = "http://127.0.0.1:3000";
     
     const headers = {
@@ -94,7 +96,7 @@ async function RPCWebAPIFetch(path, body = {}) {
             error instanceof ProgramError) {
             throw error;
         }
-        throw new Error(`Error de red: ${error.message}`);
+        throw new Error("Error de red: " + error.message);
     }
 }
 
@@ -128,7 +130,7 @@ function createIcon(classes) {
     return icon;
 }
 
-// ========== CREATE REGISTER FORM  ==========
+// ========== CREATE REGISTER FORM ==========
 function createRegisterForm() {
     var container = document.createElement("div");
     var autoWrapper = document.createElement("div");
@@ -274,29 +276,48 @@ class WCRegisterFormView extends HTMLElement {
     constructor() {
         super();
 
-        // 1. Crear el formulario 
+        // 1. Crear Shadow DOM
+        this.attachShadow({ mode: 'open' });
+
+        // 2. Importar estilos dentro del Shadow DOM
+        var linkW3 = document.createElement('link');
+        linkW3.rel = 'stylesheet';
+        linkW3.href = 'https://www.w3schools.com/w3css/4/w3.css';
+        this.shadowRoot.appendChild(linkW3);
+
+        var linkFA = document.createElement('link');
+        linkFA.rel = 'stylesheet';
+        linkFA.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css';
+        this.shadowRoot.appendChild(linkFA);
+
+        var linkFonts = document.createElement('link');
+        linkFonts.rel = 'stylesheet';
+        linkFonts.href = 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap';
+        this.shadowRoot.appendChild(linkFonts);
+
+        // 3. Crear el formulario y agregarlo al Shadow DOM
         this.registerForm = createRegisterForm();
-        this.appendChild(this.registerForm);
+        this.shadowRoot.appendChild(this.registerForm);
 
-        // 2. Buscar referencias a elementos
+        // 4. Buscar referencias a elementos dentro del Shadow DOM
         this._inputs = {
-            username: this.querySelector("#register-username"),
-            email: this.querySelector("#register-email"),
-            password: this.querySelector("#register-password"),
-            remember: this.querySelector("#user-checkbox-register")
+            username: this.shadowRoot.querySelector("#register-username"),
+            email: this.shadowRoot.querySelector("#register-email"),
+            password: this.shadowRoot.querySelector("#register-password"),
+            remember: this.shadowRoot.querySelector("#user-checkbox-register")
         };
-        this._submitButton = this.querySelector("#register-submit");
+        this._submitButton = this.shadowRoot.querySelector("#register-submit");
 
-        // 3. Crear mensaje de error 
+        // 5. Crear mensaje de error dentro del Shadow DOM
         this._errorMessage = document.createElement("div");
         this._errorMessage.className = "error-message w3-panel w3-red w3-round";
         this._errorMessage.style.display = "none";
-        const cardBody = this.querySelector(".w3-padding-large");
+        var cardBody = this.shadowRoot.querySelector(".w3-padding-large");
         if (cardBody && this._submitButton) {
             cardBody.insertBefore(this._errorMessage, this._submitButton);
         }
 
-        // 4. Crear indicador de carga 
+        // 6. Crear indicador de carga dentro del Shadow DOM
         this._loadingIndicator = document.createElement("span");
         this._loadingIndicator.textContent = " Cargando...";
         this._loadingIndicator.style.display = "none";
@@ -305,7 +326,7 @@ class WCRegisterFormView extends HTMLElement {
             this._submitButton.appendChild(this._loadingIndicator);
         }
 
-        // 5. Vincular métodos 
+        // 7. Vincular métodos para eventos
         this._handleSubmit = this._handleSubmit.bind(this);
         this._handleKeyPress = this._handleKeyPress.bind(this);
     }
@@ -316,7 +337,7 @@ class WCRegisterFormView extends HTMLElement {
             this._submitButton.addEventListener("click", this._handleSubmit);
         }
 
-        const inputs = [this._inputs.username, this._inputs.email, this._inputs.password];
+        var inputs = [this._inputs.username, this._inputs.email, this._inputs.password];
         for (var i = 0; i < inputs.length; i++) {
             var input = inputs[i];
             if (input) {
@@ -331,7 +352,7 @@ class WCRegisterFormView extends HTMLElement {
             this._submitButton.removeEventListener("click", this._handleSubmit);
         }
 
-        const inputs = [this._inputs.username, this._inputs.email, this._inputs.password];
+        var inputs = [this._inputs.username, this._inputs.email, this._inputs.password];
         for (var i = 0; i < inputs.length; i++) {
             var input = inputs[i];
             if (input) {
@@ -369,7 +390,7 @@ class WCRegisterFormView extends HTMLElement {
         successDiv.className = "w3-panel w3-green w3-round";
         successDiv.textContent = message;
         
-        var cardBody = this.querySelector(".w3-padding-large");
+        var cardBody = this.shadowRoot.querySelector(".w3-padding-large");
         if (cardBody && this._submitButton) {
             // Eliminar mensajes anteriores
             var existingMessages = cardBody.querySelectorAll(".w3-panel:not(.error-message)");
@@ -378,6 +399,7 @@ class WCRegisterFormView extends HTMLElement {
             }
             cardBody.insertBefore(successDiv, this._submitButton);
             
+            var self = this;
             setTimeout(function() {
                 successDiv.remove();
             }, 3000);
