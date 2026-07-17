@@ -1,0 +1,14 @@
+{
+  "server": {
+    "ip": "127.0.0.1",
+    "port": 8080
+  },
+  "database": {
+    "path": "./data/db.sqlite3"
+  },
+  "cors": {
+    "origin": "*",
+    "methods": "GET, POST, OPTIONS",
+    "headers": "Content-Type, Authorization, X-User-Id"
+  }
+}
